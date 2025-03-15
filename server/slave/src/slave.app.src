@@ -8,7 +8,10 @@
     stdlib
    ]},
   {env,[]},
-  {modules, []},
+  {modules, [
+    slave_app,
+    slave_sup 
+  ]},
 
   {licenses, ["Apache 2.0"]},
   {links, []}
