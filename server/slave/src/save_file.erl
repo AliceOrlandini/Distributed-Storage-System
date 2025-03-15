@@ -1,9 +1,9 @@
 -module(save_file).
 
--export([save_file/2]).
+-export([save_file/3]).
 
-save_file(FileName, FileContent) ->
-    Dir = "files",
+save_file(FileName, FileContent, NodeName) ->
+    Dir = "files_" ++ atom_to_list(NodeName),
     ensure_directory_exists(Dir),
     FilePath = filename:join(Dir, FileName),
     case file:write_file(FilePath, FileContent) of
@@ -11,7 +11,6 @@ save_file(FileName, FileContent) ->
         {error, Reason} -> 
             io:format("Error writing file: ~p~n", [Reason])
     end.
-    file:close(File).
 
 ensure_directory_exists(Dir) ->
     case file:make_dir(Dir) of
