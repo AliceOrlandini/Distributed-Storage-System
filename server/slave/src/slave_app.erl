@@ -10,8 +10,6 @@
 -export([start/2, stop/1]).
 
 start(_StartType, _StartArgs) ->
-    Pid = spawn(fun loop/0),
-    io:format("pid: ~p~n",[Pid]),
     Port = case os:getenv("PORT") of
         false ->
             5001;
@@ -39,7 +37,7 @@ start(_StartType, _StartArgs) ->
     end, Nodes),
 
     % spawn a new process to handle the connections
-    
+    register(slave, spawn(fun loop/0)).
 
     slave_sup:start_link().
 
@@ -80,6 +78,7 @@ loop() ->
         % receive a message from the master with the file name and content
         {file, FileName, FileContent} ->
             io:format("Received file: ~p~nContaining: ~p~n", [FileName, FileContent]),
+            save_file:save_file(FileName, FileContent),
             loop();
 
         Other ->
