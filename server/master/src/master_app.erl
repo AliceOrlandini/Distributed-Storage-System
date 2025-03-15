@@ -18,6 +18,12 @@ start(_StartType, _StartArgs) ->
            {PortInt, _} = string:to_integer(PortStr),
             PortInt
     end,
+    SecretKey = case os:getenv("SECRET_KEY") of
+        false ->
+            "";
+        SecretKeyStr ->
+            SecretKeyStr
+    end,
     io:format("Starting master app on port ~p~n", [Port]),  
     NumReplicas = case application:get_env(ws, num_replicas) of
         {ok, N} -> N;
@@ -29,13 +35,12 @@ start(_StartType, _StartArgs) ->
         {ok, B} -> B;
         undefined -> false
     end,
-    Nodes = start_nodes(IsBootstrap, NumReplicas),
-    io:format("Number of replicas: ~p~n", [Nodes]),
+    Nodes = start_nodes(IsBootstrap, NumReplicas, SecretKey),
 
     lists:foreach(fun(Node) ->
         io:format("Ping ~p: ~p~n", [Node, net_adm:ping(Node)])
     end, Nodes),
-    init_db(IsBootstrap, Nodes),
+    init_db(IsBootstrap, Nodes++[node()]),
 
     Dispatch = cowboy_router:compile([
         {'_', [{"/upload", master_handler, []}]}
@@ -48,28 +53,28 @@ stop(_State) ->
     ok.
 
 
-start_nodes(false, _NumReplicas) ->
+start_nodes(false, _NumReplicas, _PrivateKey) ->
     [];
-start_nodes(true, NumReplicas) ->
-    add_node(NumReplicas,[]).
-add_node(NumReplicas,Nodes) when NumReplicas > 0 -> 
+start_nodes(true, NumReplicas, PrivateKey) ->
+    add_node(NumReplicas,[], PrivateKey).
+add_node(NumReplicas,Nodes,PrivateKey) when NumReplicas > 0 -> 
     Port = 8080 + NumReplicas,
     NameStr = "master" ++ integer_to_list(NumReplicas),
     Name = list_to_atom(NameStr),
-    Args = "-setcookie master -env PORT " ++ integer_to_list(Port),
+    Args = "-setcookie system -env PORT " ++ integer_to_list(Port) ++ " -env SECRET_KEY " ++ PrivateKey,
     {ok, Node} = slave:start("127.0.0.1", Name, Args),
     rpc:call(Node, application, set_env, [ws, bootstrap, false]),
+    {_, Slaves} = application:get_env(ws, slave_nodes),
+    rpc:call(Node, application, set_env, [ws, slave_nodes, Slaves]),
     lists:foreach(
         fun(Path) ->
                 rpc:call(Node, code, add_pathz, [Path])
         end,
         code:get_path()
     ),
-    io:format("Avviato nodo ~p con porta ~p~n", [Node, code:get_path()]),
-    Res = rpc:call(Node, application, ensure_all_started, [master]),
-    io:format("Res: ~p~n", [Res]),
-    add_node(NumReplicas-1,Nodes++[Node]);
-add_node(0, Nodes) ->
+    rpc:call(Node, application, ensure_all_started, [master]),
+    add_node(NumReplicas-1,Nodes++[Node], PrivateKey);
+add_node(0, Nodes, _) ->
     Nodes.
     
 %% internal functions
@@ -84,6 +89,7 @@ init_db(true, Nodes) ->
             exit({mnesia_start_failed, BadNodes})
     end,
     io:format("Mnesia configurato su ~p res check ~p~n", [Nodes, _Results]),
-    mnesia:start();
+    mnesia:start(),
+    master_db:create_tables(Nodes);
 init_db(false,_) ->
     ok.

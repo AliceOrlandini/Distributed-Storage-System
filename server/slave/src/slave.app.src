@@ -5,10 +5,20 @@
   {mod, {slave_app, []}},
   {applications,
    [kernel,
-    stdlib
+    stdlib, 
+    ranch, 
+    cowboy,
+    crypto,
+    base64url,
+    jsx
    ]},
   {env,[]},
-  {modules, []},
+  {modules, [
+    slave_app,
+    slave_sup,
+    slave_handler,
+    save_file
+  ]},
 
   {licenses, ["Apache 2.0"]},
   {links, []}
