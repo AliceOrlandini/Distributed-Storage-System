@@ -29,7 +29,7 @@ send_chunks_to_node([Head|Tail],FileName, Position) ->
     Integer = binary:decode_unsigned(Hash),
     NodeToSave = Integer rem LenNodes,
     NodeDest = lists:nth(NodeToSave + 1, Nodes),
-    {spawn, NodeDest} ! {file, Hash, Head},
+    {slave, NodeDest} ! {file, Hash, Head},
     master_db:insert_chunk(FileName, Hash, Position, [NodeDest]),
     send_chunks_to_node(Tail,FileName, Position+1);
 send_chunks_to_node([],_,_) ->
