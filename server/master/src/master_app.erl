@@ -10,18 +10,33 @@
 -export([start/2, stop/1]).
 
 start(_StartType, _StartArgs) ->
-    case os:getenv("PORT") of
+    Port = case os:getenv("PORT") of
+        false ->
+            8081;
         PortStr ->
-            {PortInt, _} = string:to_integer(PortStr),
-            Port = PortInt;
-        undefined ->
-            {_Status, Port} = application:get_env(ws, port)
+            io:format("PortStr: ~p~n", [PortStr]), 
+           {PortInt, _} = string:to_integer(PortStr),
+            PortInt
     end,
-    io:format("Starting master app on port ~p~n", [Port]),
-    {_, _Nodes} = application:get_env(ws, nodes),
-    io:format("Nodes: ~p~n", [_Nodes]),
-    {_, IsBoostrap} = application:get_env(ws, bootstrap),
-    init_db(IsBoostrap),
+    io:format("Starting master app on port ~p~n", [Port]),  
+    NumReplicas = case application:get_env(ws, num_replicas) of
+        {ok, N} -> N;
+        undefined -> 0
+    end,
+    io:format("Number of replicas: ~p~n", [NumReplicas]),
+
+    IsBootstrap = case application:get_env(ws, bootstrap) of
+        {ok, B} -> B;
+        undefined -> false
+    end,
+    Nodes = start_nodes(IsBootstrap, NumReplicas),
+    io:format("Number of replicas: ~p~n", [Nodes]),
+
+    lists:foreach(fun(Node) ->
+        io:format("Ping ~p: ~p~n", [Node, net_adm:ping(Node)])
+    end, Nodes),
+    init_db(IsBootstrap, Nodes),
+
     Dispatch = cowboy_router:compile([
         {'_', [{"/upload", master_handler, []}]}
     ]),
@@ -32,12 +47,43 @@ start(_StartType, _StartArgs) ->
 stop(_State) ->
     ok.
 
-connect_to_node(Node) ->
-    master_sup:connect_to_node(Node).
 
-
+start_nodes(false, _NumReplicas) ->
+    [];
+start_nodes(true, NumReplicas) ->
+    add_node(NumReplicas,[]).
+add_node(NumReplicas,Nodes) when NumReplicas > 0 -> 
+    Port = 8080 + NumReplicas,
+    NameStr = "master" ++ integer_to_list(NumReplicas),
+    Name = list_to_atom(NameStr),
+    Args = "-setcookie master -env PORT " ++ integer_to_list(Port),
+    {ok, Node} = slave:start("127.0.0.1", Name, Args),
+    rpc:call(Node, application, set_env, [ws, bootstrap, false]),
+    lists:foreach(
+        fun(Path) ->
+                rpc:call(Node, code, add_pathz, [Path])
+        end,
+        code:get_path()
+    ),
+    io:format("Avviato nodo ~p con porta ~p~n", [Node, code:get_path()]),
+    Res = rpc:call(Node, application, ensure_all_started, [master]),
+    io:format("Res: ~p~n", [Res]),
+    add_node(NumReplicas-1,Nodes++[Node]);
+add_node(0, Nodes) ->
+    Nodes.
+    
 %% internal functions
-init_db(true) ->
-    io:format("init db");
-init_db(false) ->
+init_db(true, Nodes) ->
+    mnesia:create_schema(Nodes),
+    {_Results, BadNodes} = rpc:multicall(Nodes, application, ensure_all_started, [mnesia]),
+    case BadNodes of
+        [] ->
+            mnesia:start();
+        _ ->
+            io:format("Errore nell'avvio di mnesia su alcuni nodi: ~p~n", [BadNodes]),
+            exit({mnesia_start_failed, BadNodes})
+    end,
+    io:format("Mnesia configurato su ~p res check ~p~n", [Nodes, _Results]),
+    mnesia:start();
+init_db(false,_) ->
     ok.
