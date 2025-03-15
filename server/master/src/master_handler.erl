@@ -18,4 +18,3 @@ handle(<<"POST">>,  Req) ->
 handle(_, Req) ->
     cowboy_req:reply(404, #{}, <<"Not found">>, Req).
    
-

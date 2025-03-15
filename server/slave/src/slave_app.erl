@@ -10,6 +10,8 @@
 -export([start/2, stop/1]).
 
 start(_StartType, _StartArgs) ->
+    Pid = spawn(fun loop/0),
+    io:format("pid: ~p~n",[Pid]),
     Port = case os:getenv("PORT") of
         false ->
             5001;
@@ -37,7 +39,7 @@ start(_StartType, _StartArgs) ->
     end, Nodes),
 
     % spawn a new process to handle the connections
-    spawn(?MODULE, loop/0, []).
+    
 
     slave_sup:start_link().
 
