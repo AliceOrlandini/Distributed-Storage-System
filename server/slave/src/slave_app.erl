@@ -63,7 +63,7 @@ add_node(NumReplicas, Nodes) when NumReplicas > 0 ->
     Port = 5000 + NumReplicas,
     NameStr = "slave" ++ integer_to_list(NumReplicas),
     Name = list_to_atom(NameStr),
-    Args = "-setcookie slave -env PORT " ++ integer_to_list(Port),
+    Args = "-setcookie system -env PORT " ++ integer_to_list(Port),
     {ok, Node} = slave:start("127.0.0.1", Name, Args),
     % elp:ignore W0014 (cross_node_eval)
     rpc:call(Node, application, set_env, [ws, bootstrap, false]),
