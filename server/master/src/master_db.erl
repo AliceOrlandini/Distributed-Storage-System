@@ -1,12 +1,12 @@
 -module(master_db).
 -export([create_tables/1,insert_file/2, get_file/1,  insert_chunk/4, get_chunks/2]).
 
--record(user, {user_file, num_chuncks}).
+-record(user_file, {user_file, num_chuncks}).
 -record(chunk, {id, chunk_name, nodes}).
 
 create_tables(Nodes) when is_list(Nodes) ->
-    mnesia:create_table(user, [
-        {attributes, record_info(fields, user)},
+    mnesia:create_table(user_file, [
+        {attributes, record_info(fields, user_file)},
         {disc_copies, Nodes},
         {type, bag},
         {record_name, user}
@@ -23,7 +23,7 @@ create_tables(Nodes) when is_list(Nodes) ->
 
 insert_file(FileName, NumChunks) ->
     F = mnesia:transaction(fun() ->
-        mnesia:write(#user{user_file = {<<"test">>, FileName}, num_chuncks = NumChunks})
+        mnesia:write(#user_file{user_file = {<<"test">>, FileName}, num_chuncks = NumChunks})
     end),
     case F of
         {atomic, ok} ->             
@@ -36,7 +36,7 @@ insert_file(FileName, NumChunks) ->
 
 get_file(FileName) ->
     F = mnesia:transaction(fun() ->
-        mnesia:read({user, {<<"test">>, FileName}})
+        mnesia:read({user_file, {<<"test">>, FileName}})
     end),
     case F of
         {atomic, []} -> {error, not_found};

@@ -4,7 +4,7 @@
   {vsn, "0.1.0"},
   {registered, []},
   {mod, {master_app, []}},
-  {applications, [kernel, stdlib, ranch, cowboy]},
+  {applications, [kernel, stdlib, ranch, cowboy, jiffy]},
   {env, []},
   %% Elenca tutti i moduli (beam) appartenenti all'app "master"
   {modules, [master_app, master_sup, master_handler, file_chunks]},
