@@ -1,12 +1,13 @@
 package com.unipi.application.views.download;
 
-import com.unipi.application.model.Chunck;
-import com.unipi.application.model.FilePosition;
+import com.unipi.application.model.ChunckModel;
+import com.unipi.application.model.FilePositionModel;
 import com.unipi.application.services.GetChunkService;
 import com.unipi.application.services.GetFilePositionService;
 import com.unipi.application.services.GetFilesService;
 import com.unipi.application.services.SaveFileService;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
@@ -17,11 +18,10 @@ import com.vaadin.flow.router.Route;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.vaadin.lineawesome.LineAwesomeIconUrl;
-import java.util.stream.Collectors;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @PageTitle("Download File")
 @Route("download")
@@ -36,39 +36,55 @@ public class DownloadFileView extends VerticalLayout {
     private final GetFilesService getFilesService = new GetFilesService();
 
     public DownloadFileView() {
-        ComboBox<String> fileComboBox = new ComboBox<>("Seleziona un file");
+        ComboBox<String> fileComboBox = new ComboBox<>("Select a file");
         List<String> files = getFilesService.getFiles();
+        if (files.isEmpty()) {
+            Notification.show("No files available", 10000, Notification.Position.TOP_CENTER)
+                    .addThemeVariants(NotificationVariant.LUMO_WARNING);
+        }
         fileComboBox.setItems(files);
-        fileComboBox.setPlaceholder("Scegli un file");
+        fileComboBox.setPlaceholder("Choose a file");
 
 
-        Button downloadButton = new Button("Scarica e Salva File");
+        Button downloadButton = new Button("Download and Save");
+        downloadButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         downloadButton.addClickListener(event -> {
             String selectedFile = fileComboBox.getValue();
             String savePath = System.getProperty("user.home") + "/Downloads/" + selectedFile;
 
             if (selectedFile == null || selectedFile.isEmpty()) {
-                Notification.show("Seleziona un file", 3000, Notification.Position.TOP_CENTER)
+                Notification.show("Select a file", 3000, Notification.Position.TOP_CENTER)
                         .addThemeVariants(NotificationVariant.LUMO_ERROR);
                 return;
             }
-            LOGGER.info("Downloading file " + selectedFile + " to " + savePath);
+            LOGGER.info("Downloading file {} to {}", selectedFile, savePath);
 
             // takes the ip addresses of the servers that have the chunks of the selected files
-            List<FilePosition> filePositions = getFilePositionService.getFilePositions();
-            List<Chunck> chunks = filePositions.parallelStream()
-                    .map(getChunkService::getChunck)
+            List<FilePositionModel> filePositions = getFilePositionService.getFilePositions();
+            if (filePositions.isEmpty()) {
+                Notification.show("No file positions available", 10000, Notification.Position.TOP_CENTER)
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+                return;
+            }
+            List<ChunckModel> chunks = filePositions.parallelStream()
+                    .map(getChunkService::getChunk)
+                    .filter(Objects::nonNull)
                     .toList();
 
+            if (chunks.isEmpty()) {
+                Notification.show("No chunks available", 10000, Notification.Position.TOP_CENTER)
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+                return;
+            }
 
             try {
                 saveFile.SaveFile(chunks, savePath);
-                Notification.show("File scaricato e salvato in " + savePath,
+                Notification.show("File downloaded and saved in " + savePath,
                                 5000, Notification.Position.TOP_CENTER)
                         .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
             } catch (IOException e) {
-                LOGGER.error("Errore nel download del file", e);
-                Notification.show("Errore durante il salvataggio: " + e.getMessage(),
+                LOGGER.error("Error during download", e);
+                Notification.show("Error during saving: " + e.getMessage(),
                                 5000, Notification.Position.TOP_CENTER)
                         .addThemeVariants(NotificationVariant.LUMO_ERROR);
             }

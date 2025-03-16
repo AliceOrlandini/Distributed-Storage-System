@@ -7,3 +7,18 @@ vaadin-upload {
 .refresh-button {
     margin: 10px;
 }
+
+.centered-content {
+    margin-left: auto;
+    margin-right: auto;
+    width: fit-content;
+}
+
+.padding-x {
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+.w-registration {
+    width: 312px;
+}

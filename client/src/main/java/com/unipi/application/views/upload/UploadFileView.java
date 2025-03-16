@@ -15,14 +15,13 @@ import java.io.InputStream;
 
 @PageTitle("Upload File")
 @Route("upload")
-@Menu(order = 1, icon = LineAwesomeIconUrl.GLOBE_SOLID)
-public class UploadFile extends Div {
+@Menu(order = 1, icon = LineAwesomeIconUrl.CLOUD_UPLOAD_ALT_SOLID)
+public class UploadFileView extends Div {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(UploadFile.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(UploadFileView.class);
     private final UploadFileService uploadFileService = new UploadFileService();
 
-    public UploadFile() {
-
+    public UploadFileView() {
         MultiFileMemoryBuffer buffer = new MultiFileMemoryBuffer();
         Upload upload = new Upload(buffer);
 
@@ -37,20 +36,20 @@ public class UploadFile extends Div {
                     notification = Notification
                             .show("File uploaded successfully");
                     notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-                    notification.setDuration(10000);
+                    notification.setPosition(Notification.Position.TOP_CENTER);
                 } else {
                     notification = Notification
                             .show("Error during file upload");
                     notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+                    notification.setPosition(Notification.Position.TOP_CENTER);
                 }
-                notification.setPosition(Notification.Position.TOP_END);
                 notification.setDuration(10000);
             } catch (Exception e) {
                 LOGGER.error("Error uploading file", e);
                 notification = Notification
                         .show("An exception occurred: " + e.getMessage());
                 notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
-                notification.setPosition(Notification.Position.TOP_END);
+                notification.setPosition(Notification.Position.TOP_CENTER);
                 notification.setDuration(10000);
             }
         });
