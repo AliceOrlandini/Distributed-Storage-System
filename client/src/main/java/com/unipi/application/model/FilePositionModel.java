@@ -1,15 +1,15 @@
 package com.unipi.application.model;
 
-public class FilePosition {
+public class FilePositionModel {
 
     private String ip;
     private String chunkHash;
     private int chunkPosition;
 
-    public FilePosition() {
+    public FilePositionModel() {
     }
 
-    public FilePosition(String ip, String chunkHash, int chunkPosition) {
+    public FilePositionModel(String ip, String chunkHash, int chunkPosition) {
         this.ip = ip;
         this.chunkHash = chunkHash;
         this.chunkPosition = chunkPosition;

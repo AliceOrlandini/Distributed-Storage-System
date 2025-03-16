@@ -1,14 +1,14 @@
 package com.unipi.application.model;
 
-public class Chunck {
+public class ChunckModel {
 
     private int position;
     private byte[] data;
 
-    public Chunck() {
+    public ChunckModel() {
     }
 
-    public Chunck(int position, byte[] data) {
+    public ChunckModel(int position, byte[] data) {
         this.position = position;
         this.data = data;
     }
@@ -29,8 +29,8 @@ public class Chunck {
         this.data = data;
     }
 
-    public void setPositionFromFilePosition(FilePosition filePosition) {
-        this.position = filePosition.getChunkPosition();
+    public void setPositionFromFilePosition(FilePositionModel filePositionModel) {
+        this.position = filePositionModel.getChunkPosition();
     }
 
     @Override
@@ -40,4 +40,5 @@ public class Chunck {
                 ", data=" + (data != null ? data.length + " bytes" : "null") +
                 '}';
     }
+
 }
