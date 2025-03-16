@@ -15,6 +15,7 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.Menu;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.server.VaadinSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.vaadin.lineawesome.LineAwesomeIconUrl;
@@ -36,8 +37,9 @@ public class DownloadFileView extends VerticalLayout {
     private final GetFilesService getFilesService = new GetFilesService();
 
     public DownloadFileView() {
+        String jwtToken = VaadinSession.getCurrent().getAttribute("jwt").toString();
         ComboBox<String> fileComboBox = new ComboBox<>("Select a file");
-        List<String> files = getFilesService.getFiles();
+        List<String> files = getFilesService.getFiles(jwtToken);
         if (files.isEmpty()) {
             Notification.show("No files available", 10000, Notification.Position.TOP_CENTER)
                     .addThemeVariants(NotificationVariant.LUMO_WARNING);
@@ -60,14 +62,14 @@ public class DownloadFileView extends VerticalLayout {
             LOGGER.info("Downloading file {} to {}", selectedFile, savePath);
 
             // takes the ip addresses of the servers that have the chunks of the selected files
-            List<FilePositionModel> filePositions = getFilePositionService.getFilePositions();
+            List<FilePositionModel> filePositions = getFilePositionService.getFilePositions(jwtToken);
             if (filePositions.isEmpty()) {
                 Notification.show("No file positions available", 10000, Notification.Position.TOP_CENTER)
                         .addThemeVariants(NotificationVariant.LUMO_ERROR);
                 return;
             }
             List<ChunckModel> chunks = filePositions.parallelStream()
-                    .map(getChunkService::getChunk)
+                    .map(filePosition -> getChunkService.getChunk(filePosition, jwtToken))
                     .filter(Objects::nonNull)
                     .toList();
 

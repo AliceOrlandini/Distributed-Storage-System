@@ -71,15 +71,12 @@ public class RegistrationView extends Div {
             if (binder.writeBeanIfValid(model)) {
                 boolean registrationSuccessful = registrationService.register(model.getUsername(), model.getPassword());
                 if (!registrationSuccessful) {
-                    Notification notification = Notification.show("Error during registration, username already exists!");
-                    notification.setPosition(Notification.Position.TOP_CENTER);
-                    notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+                    Notification.show("Error during registration, username already exists!", 10000, Notification.Position.TOP_CENTER)
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
                     return;
                 }
-                Notification notification = Notification.show("Registration successful!");
-                notification.setPosition(Notification.Position.TOP_CENTER);
-                notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-                notification.setDuration(10000);
+                Notification.show("Registration successful!", 10000, Notification.Position.TOP_CENTER)
+                        .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
                 getUI().ifPresent(ui -> ui.navigate("login"));
             }
         });

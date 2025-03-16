@@ -1,7 +1,9 @@
 package com.unipi.application.services;
 
+import com.vaadin.flow.server.VaadinSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
@@ -14,13 +16,15 @@ public class GetFilesService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GetFilesService.class);
 
-    public List<String> getFiles() {
+    public List<String> getFiles(String jwtToken) {
         try {
             String backendUrl = "http://localhost:5000";
             LOGGER.info("Fetching file list from {}", backendUrl);
+
             FilesResponse getFilesResponse = WebClient.create(backendUrl)
                     .get()
                     .uri("/files")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtToken)
                     .exchangeToMono(response -> {
                         if (response.statusCode().isError()) {
                             LOGGER.error("Error: {}", response.statusCode());

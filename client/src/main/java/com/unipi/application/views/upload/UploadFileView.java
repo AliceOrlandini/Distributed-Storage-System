@@ -1,4 +1,5 @@
 package com.unipi.application.views.upload;
+
 import com.unipi.application.services.UploadFileService;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.notification.NotificationVariant;
@@ -8,6 +9,7 @@ import com.vaadin.flow.router.Menu;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.server.VaadinSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.vaadin.lineawesome.LineAwesomeIconUrl;
@@ -28,29 +30,21 @@ public class UploadFileView extends Div {
         upload.addSucceededListener(event -> {
             String fileName = event.getFileName();
             InputStream inputStream = buffer.getInputStream(fileName);
-            Notification notification;
 
             try {
-                boolean result = uploadFileService.uploadFile(inputStream, fileName);
+                String jwtToken = VaadinSession.getCurrent().getAttribute("jwt").toString();
+                boolean result = uploadFileService.uploadFile(inputStream, fileName, jwtToken);
                 if (result) {
-                    notification = Notification
-                            .show("File uploaded successfully");
-                    notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-                    notification.setPosition(Notification.Position.TOP_CENTER);
+                    Notification.show("File uploaded successfully", 10000, Notification.Position.TOP_CENTER)
+                        .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
                 } else {
-                    notification = Notification
-                            .show("Error during file upload");
-                    notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
-                    notification.setPosition(Notification.Position.TOP_CENTER);
+                    Notification.show("Error during file upload", 10000, Notification.Position.TOP_CENTER)
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
                 }
-                notification.setDuration(10000);
             } catch (Exception e) {
                 LOGGER.error("Error uploading file", e);
-                notification = Notification
-                        .show("An exception occurred: " + e.getMessage());
-                notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
-                notification.setPosition(Notification.Position.TOP_CENTER);
-                notification.setDuration(10000);
+                Notification.show("An exception occurred: " + e.getMessage(), 10000, Notification.Position.TOP_CENTER)
+                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
             }
         });
 

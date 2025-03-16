@@ -2,6 +2,7 @@ package com.unipi.application.services;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.stereotype.Service;
@@ -16,7 +17,7 @@ public class UploadFileService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(UploadFileService.class);
 
-    public boolean uploadFile(InputStream inputStream, String fileName) throws IOException {
+    public boolean uploadFile(InputStream inputStream, String fileName, String jwtToken) throws IOException {
         try {
             byte[] fileBytes = inputStream.readAllBytes();
 
@@ -25,9 +26,11 @@ public class UploadFileService {
 
             String backendUrl = "http://localhost:5000";
             LOGGER.info("Uploading file: {} to {}", fileName, backendUrl);
+
             String uploadFileResponse = WebClient.create(backendUrl)
                     .post()
                     .uri("/upload")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtToken)
                     .contentType(MediaType.MULTIPART_FORM_DATA)
                     .bodyValue(builder.build())
                     .exchangeToMono(response -> {

@@ -10,7 +10,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.ArrayList;
@@ -23,21 +22,20 @@ public class SaveFileService {
 
     private byte[] reassembleFile(List<ChunckModel> chunks) throws IOException {
         if (chunks == null || chunks.isEmpty()) {
-            LOGGER.warn("No chuncks found");
+            LOGGER.warn("No chunks found");
             return new byte[0];
         }
 
 
         List<ChunckModel> mutableChunks = new ArrayList<>(chunks);
-
-        Collections.sort(mutableChunks, Comparator.comparingInt(ChunckModel::getPosition));
+        mutableChunks.sort(Comparator.comparingInt(ChunckModel::getPosition));
 
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         for (ChunckModel chunk : mutableChunks) {
             outputStream.write(chunk.getData());
         }
 
-        LOGGER.info("File riassembled successfully from {} chunk.", mutableChunks.size());
+        LOGGER.info("File assembled successfully from {} chunk.", mutableChunks.size());
         return outputStream.toByteArray();
     }
 
