@@ -1,8 +1,10 @@
 package com.unipi.application.services;
 
 import com.unipi.application.model.FilePositionModel;
+import com.vaadin.flow.server.VaadinSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
@@ -14,7 +16,7 @@ public class GetFilePositionService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GetFilePositionService.class);
 
-    public List<FilePositionModel> getFilePositions() {
+    public List<FilePositionModel> getFilePositions(String jwtToken) {
         try {
             String backendUrl = "http://localhost:5000";
             LOGGER.info("Fetching file positions from {}", backendUrl);
@@ -22,6 +24,7 @@ public class GetFilePositionService {
             List<FilePositionModel> filePositions = WebClient.create(backendUrl)
                     .get()
                     .uri("/filepositions")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtToken)
                     .exchangeToFlux(response -> {
                         if (response.statusCode().isError()) {
                             LOGGER.error("Error fetching file positions, status code: {}", response.statusCode());

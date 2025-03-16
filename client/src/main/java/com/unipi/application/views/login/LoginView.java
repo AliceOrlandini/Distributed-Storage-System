@@ -39,11 +39,8 @@ public class LoginView extends VerticalLayout implements BeforeEnterObserver {
             String token = loginService.authenticate(username, password);
             if (token != null) {
                 VaadinSession.getCurrent().setAttribute("jwt", token);
-                Notification notification = new Notification("Login successful");
-                notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-                notification.setPosition(Notification.Position.TOP_CENTER);
-                notification.setDuration(10000);
-                notification.open();
+                Notification.show("Login successful", 10000, Notification.Position.TOP_CENTER)
+                        .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
                 UI.getCurrent().navigate("upload");
             } else {
                 loginForm.showErrorMessage("Invalid login", "Username or password is incorrect");
