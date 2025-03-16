@@ -1,0 +1,6 @@
+[submodule "server/master/deps/base64url"]
+	path = server/master/deps/base64url
+	url = https://github.com/dvv/base64url.git
+[submodule "server/master/deps/jsx"]
+	path = server/master/deps/jsx
+	url = https://github.com/talentdeficit/jsx.git

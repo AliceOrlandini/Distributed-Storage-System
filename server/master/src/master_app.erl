@@ -43,6 +43,7 @@ start(_StartType, _StartArgs) ->
     init_db(IsBootstrap, Nodes++[node()]),
 
     Dispatch = cowboy_router:compile([
+        {'_', [{"/registration", master_registration_handler, []}]},
         {'_', [{"/upload", master_handler, []}]}
     ]),
     {ok, _} = cowboy:start_clear(http_listener, [
