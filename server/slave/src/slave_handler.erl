@@ -4,26 +4,30 @@
 
 init(Req, Opts) ->
     Method = cowboy_req:method(Req),
-    Reply = handle(Method, Req),
+    SecretKey = maps:get(secret_key, Opts),
+    Reply = handle(Method, Req, SecretKey),
     {ok, Reply, Opts}.
 
-handle(<<"GET">>, Req) ->
+handle(<<"GET">>, Req, SecretKey) ->
     case cowboy_req:header(<<"authorization">>, Req) of
         undefined ->
             cowboy_req:reply(401, #{<<"content-type">> => <<"text/plain">>},
                                 <<"Authorization header missing">>, Req);
         AuthHeader ->
+            % Payload = #{<<"sub">> => <<"1234567890">>, <<"name">> => <<"John Doe">>, <<"admin">> => true},
+            % Test = jwt:encode(hs256, Payload, SecretKey, [{<<"auth">>, <<"Bearer Token">>}]),
+            % io:format("Test: ~p~n", [Test]),
             Token = extract_token(AuthHeader),
-            case jwt:decode(Token, <<"abcd">>) of
+            case jwt:decode(Token, SecretKey) of
                 {error, Reason} ->
-                    %% Convertiamo Reason in iodata (stringa) per la risposta
                     ErrorBody = io_lib:format("~p", [Reason]),
                     cowboy_req:reply(401, #{<<"content-type">> => <<"text/plain">>}, ErrorBody, Req);
                 Claims ->
+                    io:format("Claims: ~p~n", [Claims]),
                     cowboy_req:reply(200, #{}, <<"ok">>, Req)
             end
     end;
-handle(_, Req) ->
+handle(_, Req, _) ->
     cowboy_req:reply(404, #{}, <<"Not found">>, Req).
     
 
