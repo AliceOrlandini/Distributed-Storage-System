@@ -1,6 +1,5 @@
 -module(master_handler).
 -behaviour(cowboy_handler).
--behaviour(application).
 
 -export([init/2]).
 

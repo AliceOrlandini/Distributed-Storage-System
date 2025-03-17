@@ -1,83 +1,44 @@
 -module(jwt).
--export([encode/3, encode/4, decode/2, now_secs/0]).
+-export([encode/2, decode/2]).
 
--include("jwt.hrl").
+%% record payload non usato direttamente in questo modulo,
+%% ma i claim sono costruiti come lista di tuple
+%% per compatibilità con jwerl.
 
-%%%------------------------------------------------------------------------
-%%% External interface functions
-%%%------------------------------------------------------------------------
+encode(FileName, Key) ->
+    NormKey = crypto:hash(sha256, Key),
+    %% Aggiungiamo il claim exp con scadenza tra 864000 secondi (10 giorni)
+    Claims = [{file_name, FileName}, {exp, now_secs() + 1}],
+    %% Firma il token con HS256 usando la chiave normalizzata
+    Jwt = jwerl:sign(Claims, hs256, NormKey),
+    Jwt.
 
-encode(Algorithm, Payload, Secret) ->
-    encode(Algorithm, Payload, Secret, []).
-
-encode(Algorithm, Payload, Secret, HeaderExtra) ->
-    AlgorithmName = atom_to_algorithm(Algorithm),
-    Header = jsx:encode([{typ, <<"JWT">>},
-                         {alg, AlgorithmName} | HeaderExtra]),
-    HeaderEncoded = base64url:encode(Header),
-    PayloadEncoded = base64url:encode(jsx:encode(Payload)),
-    DataEncoded = <<HeaderEncoded/binary, $., PayloadEncoded/binary>>,
-    Signature = get_signature(Algorithm, DataEncoded, Secret),
-    SignatureEncoded = base64url:encode(Signature),
-    {ok, <<DataEncoded/binary, $., SignatureEncoded/binary>>}.
-
-decode(Data, Secret) when is_binary(Data) ->
-    try
-        case binary:split(Data, [<<".">>], [global]) of
-            [HeaderEncoded, PayloadEncoded, SignatureEncoded] ->
-                Header = jsx:decode(base64url:decode(HeaderEncoded), [{return_maps, true}]),
-                Type = maps:get(<<"typ">>, Header, undefined),
-                AlgorithmStr = maps:get(<<"alg">>, Header, undefined),
-                Expiration = maps:get(<<"exp">>, Header, noexp),
-                Algorithm = algorithm_to_atom(AlgorithmStr),
-                DataEncoded = <<HeaderEncoded/binary, $.,
-                                PayloadEncoded/binary>>,
-                ActualSignature = get_signature(Algorithm, DataEncoded, Secret),
-                Signature = base64url:decode(SignatureEncoded),
-                Payload = base64url:decode(PayloadEncoded),
-                Jwt = #jwt{typ=Type, body=Payload, alg=Algorithm,
-                           sig=Signature, actual_sig=ActualSignature},
-                if
-                    Signature =:= ActualSignature ->
-                        % TODO: leeway
-                        NowSecs = now_secs(),
-                        if
-                            Expiration == noexp orelse Expiration > NowSecs ->
-                                {ok, Jwt};
-                            true ->
-                                {error, {expired, Expiration}}
-                        end;
-                    true ->
-                        {error, {badsig, Jwt}}
-                end;
-            _ ->
-                {error, badtoken}
-        end
-    catch
-        error:E ->
-            {error, E}
+decode(Token, Key) ->
+    NormKey = crypto:hash(sha256, Key),
+    case jwerl:verify(Token, hs256, NormKey) of
+         {ok, Claims} ->
+             FileName = maps:get(file_name, Claims, undefined),
+             Exp = maps:get(exp, Claims, undefined),
+             case {FileName, Exp} of
+                  {undefined, _} ->
+                      {error, file_name_not_found};
+                  {_, undefined} ->
+                      {error, exp_not_found};
+                  {_FileName, _Exp} ->
+                      Now = now_secs(),
+                      if
+                          Now > Exp ->
+                              {error, token_expired};
+                          true ->
+                              {ok, FileName}
+                      end
+             end;
+         {error, Reason} ->
+             {error, Reason}
     end.
 
-%%%------------------------------------------------------------------------
-%%% Private functions
-%%%------------------------------------------------------------------------
-
-algorithm_to_atom(<<"HS256">>) -> hs256;
-algorithm_to_atom(<<"HS384">>) -> hs384;
-algorithm_to_atom(<<"HS512">>) -> hs512.
-
-atom_to_algorithm(hs256) -> <<"HS256">>;
-atom_to_algorithm(hs384) -> <<"HS384">>;
-atom_to_algorithm(hs512) -> <<"HS512">>.
-
-algorithm_to_crypto_algorithm(hs256) -> sha256;
-algorithm_to_crypto_algorithm(hs384) -> sha384;
-algorithm_to_crypto_algorithm(hs512) -> sha512.
-
-get_signature(Algorithm, Data, Secret) ->
-    CryptoAlg = algorithm_to_crypto_algorithm(Algorithm),
-    crypto:mac(hmac, CryptoAlg, Secret, Data).
-
+%% now_secs/0
+%% Restituisce il timestamp corrente in secondi.
 now_secs() ->
     {MegaSecs, Secs, _MicroSecs} = os:timestamp(),
-    (MegaSecs * 1000000 + Secs).
+    MegaSecs * 1000000 + Secs.
