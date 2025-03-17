@@ -49,7 +49,7 @@ map_to_user(Map) ->
         {true, true} ->
             Username = maps:get(<<"username">>, Map),
             Password = maps:get(<<"password">>, Map),
-            case check_username(Username) of
+            case master_db:get_user(Username) of
                 true ->
                     {error, <<"Username già esistente">>};
                 false ->
