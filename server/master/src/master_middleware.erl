@@ -4,25 +4,28 @@
 -export([execute/2]).
 
 execute(Req, Env) ->
-    #{dispatch := [{'_',
-                     _,
-                     [{_Paths, _Method, _Handler, Options}]
-                    }]} = Env,
-    SecretKey = maps:get(secret_key, Options),
-    case handle(Req, SecretKey) of
+    #{secret_key := SecretKey, dispatch := Dispatch} = Env,
+    Root = cowboy_req:path(Req),
+    io:format("Root: ~p~n", [Root]),
+    case handle(Root,Req, SecretKey) of
+        ok ->
+            io:format("ok tralla baralla~n", []),
+            {ok, Req, Env};
         {stop, NewReq} ->
             {stop, NewReq};
-        {ok, FileName} ->
-            NewOptions = Options#{file_name => FileName},
-            OldDispatch = maps:get(dispatch, Env),
-            NewEnv = Env#{dispatch => [{'_',
-                element(2, hd(OldDispatch)),
-                [{_Paths, _Method, _Handler, NewOptions}]
-            }]},
+        {ok, Username} ->
+            NewEnv = Env#{username => Username,dispatch := Dispatch},
             {ok, Req, NewEnv}
     end.
 
-handle(Req, SecretKey) ->
+
+
+
+handle(<<"/registration">>,_,_) -> 
+    io:format("registration~n", []),
+    ok;
+handle(<<"/login">>,_,_) -> ok;
+handle(_Path, Req, SecretKey) ->
     case cowboy_req:header(<<"authorization">>, Req) of
         undefined ->
             NewReq = cowboy_req:reply(401, #{<<"content-type">> => <<"text/plain">>},
@@ -31,13 +34,18 @@ handle(Req, SecretKey) ->
         AuthHeader ->
             Token = extract_token(AuthHeader),
             case jwt:decode(Token, SecretKey) of
-                {error, Reason} ->
-                    ErrorBody = io_lib:format("~p", [Reason]),
-                    NewReq = cowboy_req:reply(401, #{<<"content-type">> => <<"text/plain">>}, ErrorBody, Req),
+                {error, _} ->
+                    NewReq = cowboy_req:reply(401, #{<<"content-type">> => <<"text/plain">>}, "error", Req),
                     {stop, NewReq};
                 {ok, Username} ->
-                    {ok, Username}
-            end
+                    case master_db:get_user(Username) of
+                        {error, _} ->
+                            NewReq = cowboy_req:reply(401, #{<<"content-type">> => <<"text/plain">>}, "error", Req),
+                            {stop, NewReq};
+                        {ok, _User} ->
+                            {ok, Username}
+                    end
+                end
     end.
 
 extract_token(AuthHeader) ->
