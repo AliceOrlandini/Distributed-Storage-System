@@ -51,7 +51,9 @@ start(_StartType, _StartArgs) ->
     ]),
     {ok, _} = cowboy:start_clear(http_listener, [
         {port, Port}
-    ], #{env => #{dispatch => Dispatch}}),
+    ], #{
+        env => #{dispatch => Dispatch},
+        middlewares => [slave_middleware, cowboy_router, cowboy_handler]}),
 
     slave_sup:start_link().
 
