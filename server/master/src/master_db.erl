@@ -35,10 +35,10 @@ insert_user(Username, Password) ->
     end),
     case F of
         {atomic, ok} -> 
-            io:format("utente inserito~n"),
+            io:format("[INFO] User successfully inserted~n"),
             {ok, inserted};
         {aborted, Reason} -> 
-            io:format("utente non inserito ~p ~n", [Reason]),
+            io:format("[INFO] User not inserted ~p ~n", [Reason]),
             {error, Reason}
     end.
 
@@ -59,10 +59,10 @@ insert_file(FileName, NumChunks) ->
     end),
     case F of
         {atomic, ok} ->             
-            io:format("file inserito~n"),
+            io:format("[INFO] File successfully inserted~n"),
             {ok, inserted};
         {aborted, Reason} -> 
-            io:format("file inserito ~p ~n", [Reason]),
+            io:format("[INFO] File not inserted ~p ~n", [Reason]),
             {error, Reason}
     end.
 
@@ -84,10 +84,10 @@ insert_chunk(FileName, ChunkName, Position, Nodes) ->
     end),
     case F of
         {atomic, ok} -> 
-            io:format("inseritooooo~n"),
+            io:format("[INFO] Chunk successfully inserted~n"),
             {ok, inserted};
         {aborted, Reason} -> 
-            io:format("errore ~p~n",[Reason]),
+            io:format("[INFO] Chunk not inserted ~p ~n", [Reason]),
             {error, Reason}
     end.
 

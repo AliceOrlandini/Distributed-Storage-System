@@ -5,7 +5,6 @@
 
 -record(user, {username, password}).
 
-%% Entry point del Cowboy handler
 init(Req, Opts) ->
     #{
         secret_key := SecretKey
@@ -14,16 +13,16 @@ init(Req, Opts) ->
     Req2 = handle(Method, Req,SecretKey),
     {ok, Req2, Opts}.
 
-%% Gestione della richiesta POST
+
 handle(<<"POST">>, Req,SecretKey) ->
     case cowboy_req:read_body(Req) of
         {ok, Body, Req2} ->
-            io:format("body ~p~n", [Body]),
+            io:format("[INFO] Body of the request: ~p~n", [Body]),
             case jiffy:decode(Body, [return_maps]) of
                 Json when is_map(Json) ->
                     case map_to_user(Json) of
                         #user{} = User ->
-                            %% Scrive l'utente in Mnesia e gestisce l'esito della transazione
+                            % get the user information from the mnesia database
                             case master_db:get_user(User#user.username) of
                                 {ok, UserFetch} ->        
                                     case chek_password(User#user.password, UserFetch#user.password) of

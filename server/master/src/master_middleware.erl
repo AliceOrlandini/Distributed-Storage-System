@@ -27,20 +27,18 @@ handle(_Path, Req, SecretKey) ->
     case cowboy_req:header(<<"authorization">>, Req) of
         undefined ->
             NewReq = cowboy_req:reply(401, #{<<"content-type">> => <<"text/plain">>},
-                                <<"Authorization header missing">>, Req),
+                                <<"authorization header missing">>, Req),
             {stop, NewReq};
         AuthHeader ->
-            io:format("AuthHeader: ~p~n", [AuthHeader]),
             Token = extract_token(AuthHeader),
-            io:format("Token: ~p~n", [Token]),
             case jwt:decode(Token, SecretKey) of
                 {error, _} ->
-                    NewReq = cowboy_req:reply(401, #{<<"content-type">> => <<"text/plain">>}, "error", Req),
+                    NewReq = cowboy_req:reply(401, #{<<"content-type">> => <<"text/plain">>}, "error during the decode of the json body", Req),
                     {stop, NewReq};
                 {ok, Username} ->
                     case master_db:get_user(Username) of
                         {error, _} ->
-                            NewReq = cowboy_req:reply(401, #{<<"content-type">> => <<"text/plain">>}, "error", Req),
+                            NewReq = cowboy_req:reply(401, #{<<"content-type">> => <<"text/plain">>}, "error on getting user", Req),
                             {stop, NewReq};
                         {ok, _User} ->
                             {ok, Username}

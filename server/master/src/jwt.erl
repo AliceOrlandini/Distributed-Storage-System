@@ -1,26 +1,21 @@
 -module(jwt).
 -export([encode_file_name/2,encode_username/2, decode/2]).
 
-%% record payload non usato direttamente in questo modulo,
-%% ma i claim sono costruiti come lista di tuple
-%% per compatibilità con jwerl.
-
 encode_file_name(FileName, Key) ->
     NormKey = crypto:hash(sha256, Key),
-    %% Aggiungiamo il claim exp con scadenza tra 5 minuti
+    % add claim exp with expiration in 3000 seconds (50 minutes)
     Claims = [{file_name, FileName}, {exp, now_secs() + 3000}],
-    %% Firma il token con HS256 usando la chiave normalizzata
+    % sign the token with HS256 using the normalized key
     Jwt = jwerl:sign(Claims, hs256, NormKey),
     Jwt.
 
 encode_username(Username, Key) ->
     NormKey = crypto:hash(sha256, Key),
-    %% Aggiungiamo il claim exp con scadenza tra 864000 secondi (10 giorni)
-    Claims = [{file_name, Username}],
-    %% Firma il token con HS256 usando la chiave normalizzata
+    % add claim exp with expiration in 864000 seconds (10 days)
+    Claims = [{file_name, Username}, {exp, now_secs() + 864000}],
+    % sign the token with HS256 using the normalized key
     Jwt = jwerl:sign(Claims, hs256, NormKey),
     Jwt.
-
 
 decode(Token, Key) ->
     NormKey = crypto:hash(sha256, Key),
@@ -37,8 +32,7 @@ decode(Token, Key) ->
     end.
 
 
-%% now_secs/0
-%% Restituisce il timestamp corrente in secondi.
+% this function returns the current time in seconds
 now_secs() ->
     {MegaSecs, Secs, _MicroSecs} = os:timestamp(),
     MegaSecs * 1000000 + Secs.
