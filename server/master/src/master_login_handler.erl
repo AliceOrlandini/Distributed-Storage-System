@@ -1,4 +1,4 @@
--module(master_registration_handler).
+-module(master_login_handler).
 -export([init/2]).
 
 -behaviour(cowboy_handler).
@@ -7,12 +7,15 @@
 
 %% Entry point del Cowboy handler
 init(Req, Opts) ->
+    #{
+        secret_key := SecretKey
+    } = Opts,
     Method = cowboy_req:method(Req),
-    Req2 = handle(Method, Req),
+    Req2 = handle(Method, Req,SecretKey),
     {ok, Req2, Opts}.
 
 %% Gestione della richiesta POST
-handle(<<"POST">>, Req) ->
+handle(<<"POST">>, Req,SecretKey) ->
     case cowboy_req:read_body(Req) of
         {ok, Body, Req2} ->
             io:format("body ~p~n", [Body]),
@@ -21,13 +24,19 @@ handle(<<"POST">>, Req) ->
                     case map_to_user(Json) of
                         #user{} = User ->
                             %% Scrive l'utente in Mnesia e gestisce l'esito della transazione
-                            case master_db:insert_user(User#user.username, User#user.password) of
-                                {ok, inserted} ->
-                                    cowboy_req:reply(200, #{}, <<"Registrazione completata">>, Req2);
-                                {aborted, Reason} ->
-                                    ErrorMsg = <<"Errore nella transazione: ">> ++
-                                               list_to_binary(io_lib:format("~p", [Reason])),
-                                    cowboy_req:reply(500, #{}, ErrorMsg, Req2)
+                            case master_db:get_user(User#user.username) of
+                                {ok, UserFetch} ->        
+                                    case chek_password(User#user.password, UserFetch#user.password) of
+                                        true ->
+                                            Token = jwt:encode_username(User#user.username,SecretKey),
+                                            cowboy_req:reply(200, #{<<"content-type">> => <<"application/json">>},  [<<"{\"token\":\"">>, Token, <<"\"}">>], Req2);    
+                                        false ->
+                                            cowboy_req:reply(400, #{}, <<"error">>, Req2)
+                                    end;
+
+                                    
+                                {error, not_found} ->
+                                    cowboy_req:reply(400, #{}, <<"error">>, Req2)
                             end;
                         {error, ErrorMsg} ->
                             cowboy_req:reply(400, #{}, ErrorMsg, Req2)
@@ -41,7 +50,7 @@ handle(<<"POST">>, Req) ->
             cowboy_req:reply(400, #{}, ErrorMsg, Req)
     end;
 
-handle(_, Req) ->
+handle(_, Req, _) ->
     cowboy_req:reply(405, #{}, <<"Metodo non consentito">>, Req).
 
 map_to_user(Map) ->
@@ -49,31 +58,10 @@ map_to_user(Map) ->
         {true, true} ->
             Username = maps:get(<<"username">>, Map),
             Password = maps:get(<<"password">>, Map),
-            case master_db:get_user(Username) of
-                true ->
-                    {error, <<"Username già esistente">>};
-                false ->
-                    case check_length_password(Password) of
-                        true ->
-                            #user{username = Username, password = Password};
-                        false ->
-                            {error, <<"Password troppo corta">>}
-                    end
-            end;
+            #user{username = Username, password = Password};
         _ ->
             {error, <<"Parametri mancanti">>}
     end.
 
-check_username(Username) ->
-    case master_db:get_user(Username) of
-        {ok, _} -> true;
-        {error, not_found} -> false;
-        _Other -> 
-            io:format("Errore nella ricerca dell'utente ~p~n", [_Other]),
-            false
-    end.
-
-check_length_password(Password) when is_binary(Password) ->
-    byte_size(Password) >= 8;
-check_length_password(Password) when is_list(Password) ->
-    length(Password) >= 8.
+chek_password(PasswordReceived, Password) ->
+    crypto:hash(sha256, PasswordReceived) == Password.

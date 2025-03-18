@@ -1,13 +1,11 @@
 package com.unipi.application.services;
 
-import com.vaadin.flow.server.VaadinSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+
 import reactor.core.publisher.Mono;
 
 @Service
@@ -19,10 +17,10 @@ public class RegistrationService {
             LOGGER.info("Registration trial for: {}", username);
             RegistrationRequest request = new RegistrationRequest(username, password);
 
-            String backendUrl = "http://localhost:5000";
+            String backendUrl = "http://localhost:8080";
             String registrationResponse = WebClient.create(backendUrl)
                     .post()
-                    .uri("/register")
+                    .uri("/registration")
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(request)
                     .exchangeToMono(response -> {

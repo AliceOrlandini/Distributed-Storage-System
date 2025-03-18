@@ -25,12 +25,10 @@ start(_StartType, _StartArgs) ->
         SecretKeyStr ->
             SecretKeyStr
     end,
-    io:format("Starting master app on port ~p~n", [Port]),  
     NumReplicas = case application:get_env(ws, num_replicas) of
         {ok, N} -> N;
         undefined -> 0
     end,
-    io:format("Number of replicas: ~p~n", [NumReplicas]),
 
     IsBootstrap = case application:get_env(ws, bootstrap) of
         {ok, B} -> B;
@@ -44,13 +42,16 @@ start(_StartType, _StartArgs) ->
     init_db(IsBootstrap, Nodes++[node()]),
 
     Dispatch = cowboy_router:compile([
-        {'_', [{"/registration", master_registration_handler, #{secret_key => list_to_binary(SecretKey)}}]},
-        {'_', [{"/upload", master_handler, #{secret_key => list_to_binary(SecretKey)}}]}
+        {'_', [
+            {"/login", master_login_handler, #{secret_key => list_to_binary(SecretKey)}},
+            {"/registration", master_registration_handler, []},
+            {"/upload", master_handler, []}
+        ]}  
     ]),
     {ok, _} = cowboy:start_clear(http_listener, [
         {port, Port}
     ], #{
-        env => #{dispatch => Dispatch},
+        env => #{dispatch => Dispatch, secret_key => list_to_binary(SecretKey)},
         middlewares => [master_middleware, cowboy_router, cowboy_handler]}),
 
     master_sup:start_link().
@@ -79,10 +80,8 @@ add_node(NumReplicas, Nodes, _PrivateKey) when NumReplicas > 0 ->
         end,
         code:get_path()
     ),
-    io:format("Started node ~p on port ~p~n", [Node, code:get_path()]),
     % elp:ignore W0014 (cross_node_eval)
-    Res = rpc:call(Node, application, ensure_all_started, [master]),
-    io:format("Response: ~p~n", [Res]),
+    rpc:call(Node, application, ensure_all_started, [master]),
     add_node(NumReplicas - 1, Nodes++[Node],_PrivateKey);
 add_node(0, Nodes, _) ->
     Nodes.

@@ -9,11 +9,13 @@ init(Req, Opts) ->
     {ok, Reply, Opts}.
 
 handle(<<"POST">>,  Req) ->
-    {ok, Headers, Req2} = cowboy_req:read_body(Req, #{length => infinit}),
+    {ok, Headers, Req2} = cowboy_req:read_part(Req, #{}),
     {ok, Data, _Req3} = cowboy_req:read_part_body(Req2),
     {file, Filename, _ContentType, _BitSize} = cow_multipart:form_data(Headers),
     Body = [{<<"filename">>, Filename}, {<<"base64_file">>, base64:encode(Data)}],
-    Chunks = file_chunks:devide_into_chunks(Data, 8),
+    io:format("Filename: ~p~n", [Filename]),
+    Chunks = file_chunks:devide_into_chunks(Data, 8*1024),
+    io:format("Filename: ~p~n", [Filename]),
     master_db:insert_file(Filename, length(Chunks)),
     send_chunks_to_node(Chunks,Filename, 0),
     {ok, Body, Req};
