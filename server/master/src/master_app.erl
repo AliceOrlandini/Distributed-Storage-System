@@ -45,7 +45,7 @@ start(_StartType, _StartArgs) ->
         {'_', [
             {"/login", master_login_handler, #{secret_key => list_to_binary(SecretKey)}},
             {"/registration", master_registration_handler, []},
-            {"/upload", master_handler, []}
+            {"/upload", master_upload_handler, []}
         ]}  
     ]),
     {ok, _} = cowboy:start_clear(http_listener, [

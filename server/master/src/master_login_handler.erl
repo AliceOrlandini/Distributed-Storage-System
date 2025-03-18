@@ -28,13 +28,13 @@ handle(<<"POST">>, Req,SecretKey) ->
                                 {ok, UserFetch} ->        
                                     case chek_password(User#user.password, UserFetch#user.password) of
                                         true ->
-                                            Token = jwt:encode_username(User#user.username,SecretKey),
+                                            Token = jwt:encode_username(User#user.username, SecretKey),
                                             cowboy_req:reply(200, #{<<"content-type">> => <<"application/json">>},  [<<"{\"token\":\"">>, Token, <<"\"}">>], Req2);    
                                         false ->
-                                            cowboy_req:reply(400, #{}, <<"error">>, Req2)
+                                            cowboy_req:reply(400, #{}, <<"user not registered">>, Req2)
                                     end;
 
-                                    
+
                                 {error, not_found} ->
                                     cowboy_req:reply(400, #{}, <<"error">>, Req2)
                             end;
@@ -42,16 +42,15 @@ handle(<<"POST">>, Req,SecretKey) ->
                             cowboy_req:reply(400, #{}, ErrorMsg, Req2)
                     end;
                 _Other ->
-                    cowboy_req:reply(400, #{}, <<"Body non valido">>, Req2)
+                    cowboy_req:reply(400, #{}, <<"body not valid">>, Req2)
             end;
         {error, Reason} ->
-            ErrorMsg = <<"Impossibile leggere il body: ">> ++
-                       list_to_binary(io_lib:format("~p", [Reason])),
-            cowboy_req:reply(400, #{}, ErrorMsg, Req)
+            ErrorMsg = ["impossible to read the body: ", io_lib:format("~p", [Reason])],
+            cowboy_req:reply(400, #{}, list_to_binary(ErrorMsg), Req)
     end;
 
 handle(_, Req, _) ->
-    cowboy_req:reply(405, #{}, <<"Metodo non consentito">>, Req).
+    cowboy_req:reply(405, #{}, <<"method not allowed">>, Req).
 
 map_to_user(Map) ->
     case {maps:is_key(<<"username">>, Map), maps:is_key(<<"password">>, Map)} of
@@ -60,7 +59,7 @@ map_to_user(Map) ->
             Password = maps:get(<<"password">>, Map),
             #user{username = Username, password = Password};
         _ ->
-            {error, <<"Parametri mancanti">>}
+            {error, <<"missing parameters">>}
     end.
 
 chek_password(PasswordReceived, Password) ->

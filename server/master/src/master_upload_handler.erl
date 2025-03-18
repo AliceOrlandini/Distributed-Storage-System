@@ -1,4 +1,4 @@
--module(master_handler).
+-module(master_upload_handler).
 -behaviour(cowboy_handler).
 
 -export([init/2]).
@@ -6,6 +6,7 @@
 init(Req, Opts) ->
     Method = cowboy_req:method(Req),
     Reply = handle(Method, Req),
+    io:format("Ops: ~p~n", [Opts]),
     {ok, Reply, Opts}.
 
 handle(<<"POST">>,  Req) ->
@@ -17,7 +18,7 @@ handle(<<"POST">>,  Req) ->
     Chunks = file_chunks:devide_into_chunks(Data, 8*1024),
     io:format("Filename: ~p~n", [Filename]),
     master_db:insert_file(Filename, length(Chunks)),
-    send_chunks_to_node(Chunks,Filename, 0),
+    % send_chunks_to_node(Chunks,Filename, 0),
     {ok, Body, Req};
 handle(_, Req) ->
     cowboy_req:reply(404, #{}, <<"Not found">>, Req).

@@ -68,6 +68,7 @@ check_username(Username) ->
     case master_db:get_user(Username) of
         {ok, _} -> true;
         {error, not_found} -> false;
+        {error,{no_exists,user}} -> false;
         _Other -> 
             io:format("Errore nella ricerca dell'utente ~p~n", [_Other]),
             false
