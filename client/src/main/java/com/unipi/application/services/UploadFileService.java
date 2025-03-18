@@ -28,8 +28,6 @@ public class UploadFileService {
             String backendUrl = "http://localhost:8080";
             LOGGER.info("Uploading file: {} to {}", fileName, backendUrl);
 
-            System.out.println("CIAOOOOO: ");
-            System.out.println(jwtToken);
             String uploadFileResponse = WebClient.create(backendUrl)
                     .post()
                     .uri("/upload")
