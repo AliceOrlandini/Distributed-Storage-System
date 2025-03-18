@@ -17,16 +17,16 @@ handle(<<"POST">>,  Req, Username) ->
     {file, Filename, _ContentType, _BitSize} = cow_multipart:form_data(Headers),
 
     Body = [{<<"filename">>, Filename}, {<<"base64_file">>, base64:encode(Data)}],
-    Chunks = file_chunks:devide_into_chunks(Data, 8*1024),
+    Chunks = file_chunks:devide_into_chunks(Data, 80*1024),
 
     master_db:insert_file(Username, Filename, length(Chunks)),
-    send_chunks_to_node(Chunks,Filename, 0),
+    send_chunks_to_node(Chunks, Username, Filename, 0),
     {ok, Body, Req};
 handle(_, Req, _) ->
     cowboy_req:reply(404, #{}, <<"Not found">>, Req).
 
 
-send_chunks_to_node([Head|Tail],FileName, Position) ->
+send_chunks_to_node([Head|Tail], Username, FileName, Position) ->
     Nodes = get_slave_nodes(),
     LenNodes = length(Nodes),
     Hash = hash_chunck:get_hash(Head),
@@ -34,13 +34,13 @@ send_chunks_to_node([Head|Tail],FileName, Position) ->
     NodeToSave = Integer rem LenNodes,
     NodeDest = lists:nth(NodeToSave + 1, Nodes),
     {slave, NodeDest} ! {file, Hash, Head},
-    master_db:insert_chunk(FileName, Hash, Position, [NodeDest]),
-    send_chunks_to_node(Tail,FileName, Position+1);
-send_chunks_to_node([],_,_) ->
+    master_db:insert_chunk(Username, FileName, Hash, Position, [NodeDest]),
+    send_chunks_to_node(Tail, Username, FileName, Position+1);
+send_chunks_to_node([],_,_,_) ->
     ok.
 
 get_slave_nodes() ->
-    case application:get_env(ws, slave_nodes) of
+    case application:get_env('Distributed-Storage-System', slave_nodes) of
         {ok, NodesStr} ->
             lists:map(fun(NodeStr) -> list_to_atom(NodeStr) end, NodesStr);
         undefined ->

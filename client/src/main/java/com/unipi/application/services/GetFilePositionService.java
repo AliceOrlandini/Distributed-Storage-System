@@ -17,14 +17,17 @@ public class GetFilePositionService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GetFilePositionService.class);
 
-    public List<FilePositionModel> getFilePositions(String jwtToken) {
+    public List<FilePositionModel> getFilePositions(String jwtToken, String fileName) {
         try {
             String backendUrl = "http://localhost:8080";
             LOGGER.info("Fetching file positions from {}", backendUrl);
 
             List<FilePositionModel> filePositions = WebClient.create(backendUrl)
                     .get()
-                    .uri("/filepositions")
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/filepostions")
+                            .queryParam("file", fileName)
+                            .build())
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtToken)
                     .exchangeToFlux(response -> {
                         if (response.statusCode().isError()) {

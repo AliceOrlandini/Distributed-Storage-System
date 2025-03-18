@@ -3,7 +3,7 @@ package com.unipi.application.model;
 public class FilePositionModel {
 
     private String ip;
-    private String chunkHash;
+    private String chunkName;
     private int chunkPosition;
 
     public FilePositionModel() {
@@ -11,7 +11,7 @@ public class FilePositionModel {
 
     public FilePositionModel(String ip, String chunkHash, int chunkPosition) {
         this.ip = ip;
-        this.chunkHash = chunkHash;
+        this.chunkName = chunkHash;
         this.chunkPosition = chunkPosition;
     }
 
@@ -23,12 +23,12 @@ public class FilePositionModel {
         this.ip = ip;
     }
 
-    public String getChunkHash() {
-        return chunkHash;
+    public String getChunkName() {
+        return chunkName;
     }
 
-    public void setChunkHash(String chunkHash) {
-        this.chunkHash = chunkHash;
+    public void setChunkName(String chunkName) {
+        this.chunkName = chunkName;
     }
 
     public int getChunkPosition() {

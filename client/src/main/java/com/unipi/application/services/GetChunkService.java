@@ -26,7 +26,7 @@ public class GetChunkService {
                     .uri(uriBuilder -> uriBuilder
                             .path("/chunk")
                             .queryParam("ip", filePositionModel.getIp())
-                            .queryParam("chunkHash", filePositionModel.getChunkHash())
+                            .queryParam("chunkHash", filePositionModel.getChunkName())
                             .queryParam("chunkPosition", filePositionModel.getChunkPosition())
                             .build())
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtToken)
