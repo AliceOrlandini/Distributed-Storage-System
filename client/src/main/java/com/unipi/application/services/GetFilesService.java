@@ -1,15 +1,15 @@
 package com.unipi.application.services;
 
-import com.vaadin.flow.server.VaadinSession;
+import java.util.Collections;
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
 
-import java.util.Collections;
-import java.util.List;
+import reactor.core.publisher.Mono;
 
 @Service
 public class GetFilesService {
@@ -18,7 +18,7 @@ public class GetFilesService {
 
     public List<String> getFiles(String jwtToken) {
         try {
-            String backendUrl = "http://localhost:5000";
+            String backendUrl = "http://localhost:8080";
             LOGGER.info("Fetching file list from {}", backendUrl);
 
             FilesResponse getFilesResponse = WebClient.create(backendUrl)

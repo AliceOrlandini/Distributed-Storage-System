@@ -8,7 +8,7 @@
 encode_file_name(FileName, Key) ->
     NormKey = crypto:hash(sha256, Key),
     %% Aggiungiamo il claim exp con scadenza tra 5 minuti
-    Claims = [{file_name, FileName}, {exp, now_secs() + 300}],
+    Claims = [{file_name, FileName}, {exp, now_secs() + 3000}],
     %% Firma il token con HS256 usando la chiave normalizzata
     Jwt = jwerl:sign(Claims, hs256, NormKey),
     Jwt.
@@ -29,9 +29,9 @@ decode(Token, Key) ->
              case maps:get(file_name, Claims, undefined) of
                 {undefined} ->
                     {error, file_name_not_found};
-                {Username} ->
+                Username ->
                     {ok, Username}
-             end;
+            end;
          {error, Reason} ->
              {error, Reason}
     end.

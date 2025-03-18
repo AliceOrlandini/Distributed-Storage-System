@@ -1,14 +1,10 @@
 package com.unipi.application.services;
 
-import com.unipi.application.model.ChunckModel;
-import com.vaadin.flow.server.VaadinSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
 
 @Service
 public class LoginService {
@@ -19,28 +15,21 @@ public class LoginService {
             LOGGER.info("Authentication trial for: {}", username);
             LoginRequest request = new LoginRequest(username, password);
 
-            String backendUrl = "http://localhost:5000";
-            String token = WebClient.create(backendUrl)
-                    .post()
-                    .uri("/login")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(request)
-                    .exchangeToMono(response -> {
-                        if (response.statusCode().isError()) {
-                            LOGGER.error("Error: {}", response.statusCode());
-                            return Mono.just("");
-                        } else {
-                            return response.bodyToMono(String.class);
-                        }
-                    })
-                    .block();
-
-            if (token == null || token.isEmpty()) {
+            String backendUrl = "http://localhost:8080";
+            LoginResponse loginResponse = WebClient.create(backendUrl)
+                .post()
+                .uri("/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .retrieve() // usa retrieve() per semplificare la gestione degli errori
+                .bodyToMono(LoginResponse.class)
+                .block();
+            if (loginResponse == null || loginResponse.getToken() == null) {
                 LOGGER.error("Authentication failed for user: {}", username);
                 return null;
             }
             LOGGER.info("Authentication complete: {}. Token received.", username);
-            return token;
+            return loginResponse.getToken();
         } catch (Exception e) {
             LOGGER.error("Authentication failed for user: {}", username, e);
             return null;
@@ -69,6 +58,20 @@ public class LoginService {
         }
         public void setPassword(String password) {
             this.password = password;
+        }
+    }
+
+    public static class LoginResponse {
+        private String token;
+        
+        public LoginResponse() {}
+
+        public String getToken() {
+            return token;
+        }
+    
+        public void setToken(String token) {
+            this.token = token;
         }
     }
 }

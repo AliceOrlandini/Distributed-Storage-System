@@ -29,7 +29,7 @@ handle(<<"POST">>, Req,SecretKey) ->
                                     case chek_password(User#user.password, UserFetch#user.password) of
                                         true ->
                                             Token = jwt:encode_username(User#user.username,SecretKey),
-                                            cowboy_req:reply(200, #{},  [<<"{\"token\":\"">>, Token, <<"\"}">>], Req2);    
+                                            cowboy_req:reply(200, #{<<"content-type">> => <<"application/json">>},  [<<"{\"token\":\"">>, Token, <<"\"}">>], Req2);    
                                         false ->
                                             cowboy_req:reply(400, #{}, <<"error">>, Req2)
                                     end;

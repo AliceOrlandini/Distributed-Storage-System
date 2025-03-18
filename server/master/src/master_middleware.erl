@@ -32,7 +32,9 @@ handle(_Path, Req, SecretKey) ->
                                 <<"Authorization header missing">>, Req),
             {stop, NewReq};
         AuthHeader ->
+            io:format("AuthHeader: ~p~n", [AuthHeader]),
             Token = extract_token(AuthHeader),
+            io:format("Token: ~p~n", [Token]),
             case jwt:decode(Token, SecretKey) of
                 {error, _} ->
                     NewReq = cowboy_req:reply(401, #{<<"content-type">> => <<"text/plain">>}, "error", Req),
