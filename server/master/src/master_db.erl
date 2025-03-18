@@ -1,5 +1,5 @@
 -module(master_db).
--export([create_tables/1,insert_file/2, get_file/1,  insert_chunk/4, get_chunks/2, insert_user/2, get_user/1]).
+-export([create_tables/1, insert_file/3, get_file/1, insert_chunk/4, get_chunks/2, insert_user/2, get_user/1]).
 
 -record(user_file, {user_file, num_chuncks}).
 -record(chunk, {id, chunk_name, nodes}).
@@ -53,7 +53,7 @@ get_user(Username) ->
         {aborted, Reason} -> {error, Reason}
     end.
 
-insert_file(FileName, NumChunks) ->
+insert_file(Username, FileName, NumChunks) ->
     F = mnesia:transaction(fun() ->
         mnesia:write(#user_file{user_file = {<<"test">>, FileName}, num_chuncks = NumChunks})
     end),
