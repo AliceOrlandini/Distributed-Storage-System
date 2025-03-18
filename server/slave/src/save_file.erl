@@ -9,7 +9,7 @@ save_file(FileName, FileContent, NodeName) ->
     case file:write_file(FilePath, FileContent) of
         ok -> ok;
         {error, Reason} -> 
-            io:format("Error writing file: ~p~n", [Reason])
+            io:format("[ERROR] Error writing file: ~p~n", [Reason])
     end.
 
 ensure_directory_exists(Dir) ->
@@ -19,6 +19,6 @@ ensure_directory_exists(Dir) ->
         {error, eexist} ->
             ok;
         {error, Reason} ->
-            io:format("Impossible to create directory ~s: ~p~n", [Dir, Reason]),
+            io:format("[ERROR] Impossible to create directory ~s: ~p~n", [Dir, Reason]),
             {error, Reason}
     end.

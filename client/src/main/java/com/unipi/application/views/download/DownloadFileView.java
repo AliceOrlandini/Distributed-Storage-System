@@ -62,7 +62,7 @@ public class DownloadFileView extends VerticalLayout {
             LOGGER.info("Downloading file {} to {}", selectedFile, savePath);
 
             // takes the ip addresses of the servers that have the chunks of the selected files
-            List<FilePositionModel> filePositions = getFilePositionService.getFilePositions(jwtToken);
+            List<FilePositionModel> filePositions = getFilePositionService.getFilePositions(jwtToken, selectedFile);
             if (filePositions.isEmpty()) {
                 Notification.show("No file positions available", 10000, Notification.Position.TOP_CENTER)
                         .addThemeVariants(NotificationVariant.LUMO_ERROR);

@@ -15,11 +15,11 @@ start(_StartType, _StartArgs) ->
         false ->
             5001;
         PortStr ->
-            io:format("PortStr: ~p~n", [PortStr]), 
+            io:format("[INFO] Port: ~p~n", [PortStr]), 
            {PortInt, _} = string:to_integer(PortStr),
             PortInt
     end,
-    io:format("Starting slave app on port ~p~n", [Port]),  
+    io:format("[INFO] Starting slave app on port ~p~n", [Port]),  
     NumReplicas = case application:get_env('Distributed-Storage-System', num_replicas) of
         {ok, N} -> N;
         undefined -> 0
@@ -30,17 +30,16 @@ start(_StartType, _StartArgs) ->
         SecretKeyStr ->
             SecretKeyStr
     end,
-    io:format("Number of replicas: ~p~n", [NumReplicas]),
 
     IsBootstrap = case application:get_env('Distributed-Storage-System', bootstrap) of
         {ok, B} -> B;
         undefined -> false
     end,
     Nodes = start_nodes(IsBootstrap, NumReplicas, SecretKey),
-    io:format("Number of replicas: ~p~n", [Nodes]),
+    io:format("[INFO] Number of replicas: ~p~n", [Nodes]),
 
     lists:foreach(fun(Node) ->
-        io:format("Ping ~p: ~p~n", [Node, net_adm:ping(Node)])
+        io:format("[INFO] Ping ~p: ~p~n", [Node, net_adm:ping(Node)])
     end, Nodes),
 
     % spawn a new process to handle the connections
@@ -82,10 +81,10 @@ add_node(NumReplicas, Nodes, _PrivateKey) when NumReplicas > 0 ->
         end,
         code:get_path()
     ),
-    io:format("Started node ~p on port ~p~n", [Node, code:get_path()]),
+    io:format("[INFO] Started node ~p on port ~p~n", [Node, code:get_path()]),
     % elp:ignore W0014 (cross_node_eval)
     Res = rpc:call(Node, application, ensure_all_started, [slave]),
-    io:format("Response: ~p~n", [Res]),
+    io:format("[INFO] Response: ~p~n", [Res]),
     add_node(NumReplicas - 1, Nodes++[Node], _PrivateKey);
 
 add_node(0, Nodes, _) ->
@@ -95,11 +94,11 @@ loop() ->
     receive
         % receive a message from the master with the file name and content
         {file, FileName, FileContent} ->
-            io:format("Received file: ~p~nContaining: ~p~n", [FileName, FileContent]),
+            io:format("[INFO] Received file: ~p~nContaining: ~p~n", [FileName, FileContent]),
             save_file:save_file(FileName, FileContent, node()),
             loop();
 
         Other ->
-            io:format("Messaggio unknown: ~p~n", [Other]),
+            io:format("[INFO] Unknown messagge: ~p~n", [Other]),
             loop()
     end.

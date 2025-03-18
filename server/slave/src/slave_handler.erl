@@ -26,16 +26,16 @@ handle(<<"GET">>, Req, State) ->
                                     FileName = maps:get(file_name, Claims, undefined),
                                     case FileName of
                                         undefined ->
-                                            cowboy_req:reply(400, #{}, <<"File name not found inside the token">>, Req2);
+                                            cowboy_req:reply(400, #{}, <<"file name not found inside the token">>, Req2);
                                         _ ->
                                             case retrieve_file:retrieve_file(binary_to_list(FileName), node()) of
                                                 {ok, FileContent} ->
                                                     cowboy_req:reply(200, #{<<"content-type">> => <<"application/octet-stream">>}, FileContent, Req);
                                                 {error, file_not_found} ->
-                                                    ErrorMsg = <<"File not found">>,
+                                                    ErrorMsg = <<"file not found">>,
                                                     cowboy_req:reply(404, #{}, ErrorMsg, Req);
                                                 {error, Reason} ->
-                                                    ErrorMsg = lists:flatten(io_lib:format("Errore: ~p", [Reason])),
+                                                    ErrorMsg = lists:flatten(io_lib:format("error during file retrieval: ~p", [Reason])),
                                                     cowboy_req:reply(500, #{}, ErrorMsg, Req)
                                             end
                                     end;
@@ -47,14 +47,14 @@ handle(<<"GET">>, Req, State) ->
                             cowboy_req:reply(400, #{}, ErrorMsg, Req2)
                     end;
                 _Other ->
-                    cowboy_req:reply(400, #{<<"content-type">> => <<"text/plain">>}, <<"Body not valid">>, Req2)
+                    cowboy_req:reply(400, #{<<"content-type">> => <<"text/plain">>}, <<"body not valid">>, Req2)
             end;
         {error, Reason} ->
             ErrorBody = io_lib:format("~p", [Reason]),
             cowboy_req:reply(400, #{<<"content-type">> => <<"text/plain">>}, ErrorBody, Req)
     end;
 handle(_, Req, _) ->
-    cowboy_req:reply(404, #{}, <<"Not found">>, Req).
+    cowboy_req:reply(404, #{}, <<"not found">>, Req).
     
 extract_token(Map) ->
     case {maps:is_key(<<"token">>, Map)} of
@@ -62,5 +62,5 @@ extract_token(Map) ->
             ExtractedToken = maps:get(<<"token">>, Map),
             {ok, ExtractedToken};
         _ ->
-            {error, <<"Missing Parameters">>}
+            {error, <<"missing Parameters">>}
     end.

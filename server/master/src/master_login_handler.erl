@@ -5,7 +5,6 @@
 
 -record(user, {username, password}).
 
-%% Entry point del Cowboy handler
 init(Req, Opts) ->
     #{
         secret_key := SecretKey
@@ -14,27 +13,27 @@ init(Req, Opts) ->
     Req2 = handle(Method, Req,SecretKey),
     {ok, Req2, Opts}.
 
-%% Gestione della richiesta POST
+
 handle(<<"POST">>, Req,SecretKey) ->
     case cowboy_req:read_body(Req) of
         {ok, Body, Req2} ->
-            io:format("body ~p~n", [Body]),
+            io:format("[INFO] Body of the request: ~p~n", [Body]),
             case jiffy:decode(Body, [return_maps]) of
                 Json when is_map(Json) ->
                     case map_to_user(Json) of
                         #user{} = User ->
-                            %% Scrive l'utente in Mnesia e gestisce l'esito della transazione
+                            % get the user information from the mnesia database
                             case master_db:get_user(User#user.username) of
                                 {ok, UserFetch} ->        
                                     case chek_password(User#user.password, UserFetch#user.password) of
                                         true ->
-                                            Token = jwt:encode_username(User#user.username,SecretKey),
+                                            Token = jwt:encode_username(User#user.username, SecretKey),
                                             cowboy_req:reply(200, #{<<"content-type">> => <<"application/json">>},  [<<"{\"token\":\"">>, Token, <<"\"}">>], Req2);    
                                         false ->
-                                            cowboy_req:reply(400, #{}, <<"error">>, Req2)
+                                            cowboy_req:reply(400, #{}, <<"user not registered">>, Req2)
                                     end;
 
-                                    
+
                                 {error, not_found} ->
                                     cowboy_req:reply(400, #{}, <<"error">>, Req2)
                             end;
@@ -42,16 +41,15 @@ handle(<<"POST">>, Req,SecretKey) ->
                             cowboy_req:reply(400, #{}, ErrorMsg, Req2)
                     end;
                 _Other ->
-                    cowboy_req:reply(400, #{}, <<"Body non valido">>, Req2)
+                    cowboy_req:reply(400, #{}, <<"body not valid">>, Req2)
             end;
         {error, Reason} ->
-            ErrorMsg = <<"Impossibile leggere il body: ">> ++
-                       list_to_binary(io_lib:format("~p", [Reason])),
-            cowboy_req:reply(400, #{}, ErrorMsg, Req)
+            ErrorMsg = ["impossible to read the body: ", io_lib:format("~p", [Reason])],
+            cowboy_req:reply(400, #{}, list_to_binary(ErrorMsg), Req)
     end;
 
 handle(_, Req, _) ->
-    cowboy_req:reply(405, #{}, <<"Metodo non consentito">>, Req).
+    cowboy_req:reply(405, #{}, <<"method not allowed">>, Req).
 
 map_to_user(Map) ->
     case {maps:is_key(<<"username">>, Map), maps:is_key(<<"password">>, Map)} of
@@ -60,7 +58,7 @@ map_to_user(Map) ->
             Password = maps:get(<<"password">>, Map),
             #user{username = Username, password = Password};
         _ ->
-            {error, <<"Parametri mancanti">>}
+            {error, <<"missing parameters">>}
     end.
 
 chek_password(PasswordReceived, Password) ->

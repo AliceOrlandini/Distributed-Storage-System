@@ -5,29 +5,26 @@
 
 -record(user, {username, password}).
 
-%% Entry point del Cowboy handler
 init(Req, Opts) ->
     Method = cowboy_req:method(Req),
     Req2 = handle(Method, Req),
     {ok, Req2, Opts}.
 
-%% Gestione della richiesta POST
 handle(<<"POST">>, Req) ->
     case cowboy_req:read_body(Req) of
         {ok, Body, Req2} ->
-            io:format("body ~p~n", [Body]),
+            io:format("[INFO] Body of the request: ~p~n", [Body]),
             case jiffy:decode(Body, [return_maps]) of
                 Json when is_map(Json) ->
                     case map_to_user(Json) of
                         #user{} = User ->
-                            %% Scrive l'utente in Mnesia e gestisce l'esito della transazione
+                            % insert the user in the mnesia database
                             case master_db:insert_user(User#user.username, User#user.password) of
                                 {ok, inserted} ->
-                                    cowboy_req:reply(200, #{}, <<"Registrazione completata">>, Req2);
+                                    cowboy_req:reply(200, #{}, <<"registration successful">>, Req2);
                                 {aborted, Reason} ->
-                                    ErrorMsg = <<"Errore nella transazione: ">> ++
-                                               list_to_binary(io_lib:format("~p", [Reason])),
-                                    cowboy_req:reply(500, #{}, ErrorMsg, Req2)
+                                    ErrorMsg = io_lib:format("error during registration: ~p", [Reason]),
+                                    cowboy_req:reply(500, #{}, list_to_binary(ErrorMsg), Req2)
                             end;
                         {error, ErrorMsg} ->
                             cowboy_req:reply(400, #{}, ErrorMsg, Req2)
@@ -36,9 +33,8 @@ handle(<<"POST">>, Req) ->
                     cowboy_req:reply(400, #{}, <<"Body non valido">>, Req2)
             end;
         {error, Reason} ->
-            ErrorMsg = <<"Impossibile leggere il body: ">> ++
-                       list_to_binary(io_lib:format("~p", [Reason])),
-            cowboy_req:reply(400, #{}, ErrorMsg, Req)
+            ErrorMsg = io_lib:format("impossible to read the body: ~p", [Reason]),
+            cowboy_req:reply(400, #{}, list_to_binary(ErrorMsg), Req)
     end;
 
 handle(_, Req) ->
@@ -51,25 +47,26 @@ map_to_user(Map) ->
             Password = maps:get(<<"password">>, Map),
             case check_username(Username) of
                 true ->
-                    {error, <<"Username già esistente">>};
+                    {error, <<"username already exists">>};
                 false ->
                     case check_length_password(Password) of
                         true ->
                             #user{username = Username, password = Password};
                         false ->
-                            {error, <<"Password troppo corta">>}
+                            {error, <<"password too short">>}
                     end
             end;
         _ ->
-            {error, <<"Parametri mancanti">>}
+            {error, <<"missing parameters">>}
     end.
 
 check_username(Username) ->
     case master_db:get_user(Username) of
         {ok, _} -> true;
         {error, not_found} -> false;
+        {error,{no_exists,user}} -> false;
         _Other -> 
-            io:format("Errore nella ricerca dell'utente ~p~n", [_Other]),
+            io:format("[ERROR] error during the check of the username ~p~n", [Username]),
             false
     end.
 

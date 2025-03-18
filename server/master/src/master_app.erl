@@ -15,7 +15,7 @@ start(_StartType, _StartArgs) ->
         false ->
             8081;
         PortStr ->
-            io:format("PortStr: ~p~n", [PortStr]), 
+            io:format("[INFO] Port: ~p~n", [PortStr]),
            {PortInt, _} = string:to_integer(PortStr),
             PortInt
     end,
@@ -25,19 +25,19 @@ start(_StartType, _StartArgs) ->
         SecretKeyStr ->
             SecretKeyStr
     end,
-    NumReplicas = case application:get_env(ws, num_replicas) of
+    NumReplicas = case application:get_env('Distributed-Storage-System', num_replicas) of
         {ok, N} -> N;
         undefined -> 0
     end,
 
-    IsBootstrap = case application:get_env(ws, bootstrap) of
+    IsBootstrap = case application:get_env('Distributed-Storage-System', bootstrap) of
         {ok, B} -> B;
         undefined -> false
     end,
     Nodes = start_nodes(IsBootstrap, NumReplicas, SecretKey),
 
     lists:foreach(fun(Node) ->
-        io:format("Ping ~p: ~p~n", [Node, net_adm:ping(Node)])
+        io:format("[INFO] Ping ~p: ~p~n", [Node, net_adm:ping(Node)])
     end, Nodes),
     init_db(IsBootstrap, Nodes++[node()]),
 
@@ -45,7 +45,9 @@ start(_StartType, _StartArgs) ->
         {'_', [
             {"/login", master_login_handler, #{secret_key => list_to_binary(SecretKey)}},
             {"/registration", master_registration_handler, []},
-            {"/upload", master_handler, []}
+            {"/upload", master_upload_handler, []},
+            {"/files", master_get_files_handler, []},
+            {"/fileparts", master_file_parts_handler, []}
         ]}  
     ]),
     {ok, _} = cowboy:start_clear(http_listener, [
@@ -89,15 +91,16 @@ add_node(0, Nodes, _) ->
 %% internal functions
 init_db(true, Nodes) ->
     mnesia:create_schema(Nodes),
+    % elp:ignore W0014 (cross_node_eval)
     {_Results, BadNodes} = rpc:multicall(Nodes, application, ensure_all_started, [mnesia]),
     case BadNodes of
         [] ->
             mnesia:start();
         _ ->
-            io:format("Errore nell'avvio di mnesia su alcuni nodi: ~p~n", [BadNodes]),
+            io:format("[INFO] Mnesia start failed on nodes: ~p~n", [BadNodes]),
             exit({mnesia_start_failed, BadNodes})
     end,
-    io:format("Mnesia configurato su ~p res check ~p~n", [Nodes, _Results]),
+    io:format("[INFO] Mnesia started on nodes: ~p. With result: ~p~n", [Nodes, _Results]),
     mnesia:start(),
     master_db:create_tables(Nodes);
 init_db(false,_) ->
