@@ -37,9 +37,6 @@ public class LoginView extends VerticalLayout implements BeforeEnterObserver {
             String username = event.getUsername();
             String password = event.getPassword();
             String token = loginService.authenticate(username, password);
-            // print token
-            System.out.println("CIAOOOOO: ");
-            System.out.println(token);
             if (token != null) {
                 VaadinSession.getCurrent().setAttribute("jwt", token);
                 Notification.show("Login successful", 10000, Notification.Position.TOP_CENTER)
