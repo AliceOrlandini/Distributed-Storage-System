@@ -25,7 +25,7 @@ public class GetFilePositionService {
             List<FilePositionModel> filePositions = WebClient.create(backendUrl)
                     .get()
                     .uri(uriBuilder -> uriBuilder
-                            .path("/filepostions")
+                            .path("/fileparts")
                             .queryParam("file", fileName)
                             .build())
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtToken)

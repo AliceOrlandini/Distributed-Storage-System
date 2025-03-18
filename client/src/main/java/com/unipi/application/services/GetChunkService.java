@@ -24,7 +24,7 @@ public class GetChunkService {
             ChunckModel chunk = WebClient.create(backendUrl)
                     .get()
                     .uri(uriBuilder -> uriBuilder
-                            .path("/chunk")
+                            .path("/download")
                             .queryParam("ip", filePositionModel.getIp())
                             .queryParam("chunkHash", filePositionModel.getChunkName())
                             .queryParam("chunkPosition", filePositionModel.getChunkPosition())
