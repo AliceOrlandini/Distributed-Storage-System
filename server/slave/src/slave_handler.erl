@@ -3,17 +3,12 @@
 -export([init/2]).
 
 init(Req, Opts) ->
+    #{secret_key := SecretKey} = Opts,
     Method = cowboy_req:method(Req),
-    Reply = handle(Method, Req,Opts),
+    Reply = handle(Method, Req, SecretKey),
     {ok, Reply, Opts}.
 
-handle(<<"GET">>, Req, State) ->
-    SecretKey = maps:get(secret_key, State),
-    %%%%%% TO REMOVE %%%%%%
-    % TokenTest = jwt:encode(#{file_name =><<"file1.txt">>}, SecretKey),
-    % io:format("TokenTest: ~p~n", [TokenTest]),
-    %%%%%% TO REMOVE %%%%%% 
-    % the token is in the body of the request { "token": "token_value" }
+handle(<<"GET">>, Req, SecretKey) ->
     case cowboy_req:read_body(Req) of
         {ok, Body, Req2} ->
             case jiffy:decode(Body, [return_maps]) of
@@ -22,8 +17,7 @@ handle(<<"GET">>, Req, State) ->
                         {ok, ExtractedToken} ->
                             DecodedToken = jwt:decode(ExtractedToken, SecretKey),
                             case DecodedToken of
-                                {ok, Claims} ->
-                                    FileName = maps:get(file_name, Claims, undefined),
+                                {ok, FileName} ->
                                     case FileName of
                                         undefined ->
                                             cowboy_req:reply(400, #{}, <<"file name not found inside the token">>, Req2);
@@ -62,5 +56,5 @@ extract_token(Map) ->
             ExtractedToken = maps:get(<<"token">>, Map),
             {ok, ExtractedToken};
         _ ->
-            {error, <<"missing Parameters">>}
+            {error, <<"missing parameters">>}
     end.

@@ -81,7 +81,7 @@ add_node(NumReplicas, Nodes, _PrivateKey) when NumReplicas > 0 ->
         end,
         code:get_path()
     ),
-    io:format("[INFO] Started node ~p on port ~p~n", [Node, code:get_path()]),
+    io:format("[INFO] Started node ~p~n", [Node]),
     % elp:ignore W0014 (cross_node_eval)
     Res = rpc:call(Node, application, ensure_all_started, [slave]),
     io:format("[INFO] Response: ~p~n", [Res]),
@@ -94,7 +94,7 @@ loop() ->
     receive
         % receive a message from the master with the file name and content
         {file, FileName, FileContent} ->
-            io:format("[INFO] Received file: ~p~nContaining: ~p~n", [FileName, FileContent]),
+            io:format("[INFO] Received file: ~p~n", [FileName]),
             save_file:save_file(FileName, FileContent, node()),
             loop();
 

@@ -6,9 +6,7 @@
 -record(user, {username, password}).
 
 init(Req, Opts) ->
-    #{
-        secret_key := SecretKey
-    } = Opts,
+    #{secret_key := SecretKey} = Opts,
     Method = cowboy_req:method(Req),
     Req2 = handle(Method, Req,SecretKey),
     {ok, Req2, Opts}.

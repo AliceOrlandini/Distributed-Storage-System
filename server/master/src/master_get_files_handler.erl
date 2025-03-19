@@ -6,7 +6,7 @@
 init(Req, Opts) ->
     [#{username := Username}] = Opts,
     Method = cowboy_req:method(Req),
-    Req2 = handle(Method, Req,Username),
+    Req2 = handle(Method, Req, Username),
     {ok, Req2, Opts}.
 
 
