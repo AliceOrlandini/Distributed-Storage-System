@@ -51,10 +51,31 @@ chunk_to_map([[{chunk, {_Username, _Filename, ChunkPosition}, ChunkName, Nodes}]
             [] -> undefined;
             [FirstNode | _] -> FirstNode
             end,
-    Map = #{<<"ip">> => IP,
+    IpFormatted = node_to_url(IP),
+    io:format("[INFO] IP: ~p~n", [IpFormatted]),
+    IpFormattedBin = list_to_binary(IpFormatted),
+    Map = #{<<"ip">> => IpFormattedBin,
             <<"chunkName">> => TokenChunkName,
             <<"chunkPosition">> => ChunkPosition},
     chunk_to_map(Tail, [Map | Acc], SecretKey);
 chunk_to_map([], Acc, _) ->
     %% Se vuoi mantenere l'ordine originale, puoi fare lists:reverse(Acc)
     lists:reverse(Acc).
+
+
+node_to_url(NodeStr) when is_atom(NodeStr) ->
+    node_to_url(atom_to_list(NodeStr));
+node_to_url(NodeStr) when is_list(NodeStr) ->
+    case string:split(NodeStr, "@") of
+        [NodeName, Host] ->
+            % Estrai il numero dal nome del nodo (es. "slave3" -> 3)
+            case string:substr(NodeName, 6, length(NodeName) - 5) of
+                NumStr when is_list(NumStr) ->
+                    Port = 5000 + list_to_integer(NumStr),
+                    lists:flatten(io_lib:format("http://~s:~p", [Host, Port]));
+                _ ->
+                    "http://" ++ NodeStr  % fallback
+            end;
+        _ ->
+            "http://" ++ NodeStr  % fallback
+    end.

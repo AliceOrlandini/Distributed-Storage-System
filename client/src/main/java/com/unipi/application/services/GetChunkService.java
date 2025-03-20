@@ -18,16 +18,14 @@ public class GetChunkService {
 
     public ChunckModel getChunk(FilePositionModel filePositionModel, String jwtToken) {
         try {
-            String backendUrl = "http://localhost:8080";
-            LOGGER.info("Fetching chunk for file position {} from {}", filePositionModel, backendUrl);
+            String backendUrl = filePositionModel.getIp();
+            LOGGER.info("Fetching chunk for file position {}", filePositionModel.getIp());
 
             ChunckModel chunk = WebClient.create(backendUrl)
                     .get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/download")
-                            .queryParam("ip", filePositionModel.getIp())
-                            .queryParam("chunkHash", filePositionModel.getChunkName())
-                            .queryParam("chunkPosition", filePositionModel.getChunkPosition())
+                            .queryParam("token", filePositionModel.getChunkName())
                             .build())
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtToken)
                     .exchangeToMono(response -> {
