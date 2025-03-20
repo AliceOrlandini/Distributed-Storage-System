@@ -17,6 +17,7 @@ handle(<<"GET">>, Req, Username) ->
             Json = jsx:encode(
               #{ files => Filenames }
             ),
+            io:format("Get files Json: ~p~n", [Json]),
             cowboy_req:reply(200, #{<<"content-type">> => <<"application/json">>}, Json, Req);
         {error, Reason} ->
             cowboy_req:reply(500, #{}, Reason, Req)
