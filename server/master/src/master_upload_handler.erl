@@ -18,7 +18,7 @@ handle(<<"POST">>,  Req, Username) ->
 
     Body = [{<<"filename">>, Filename}, {<<"base64_file">>, base64:encode(Data)}],
     Chunks = file_chunks:devide_into_chunks(Data, 80*1024),
-
+    io:format("[INFO] FileName: ~p~n", [Filename]),
     master_db:insert_file(Username, Filename, length(Chunks)),
     send_chunks_to_node(Chunks, Username, Filename, 0),
     {ok, Body, Req};

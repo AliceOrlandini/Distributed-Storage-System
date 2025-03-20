@@ -23,7 +23,7 @@ public class UploadFileService {
             byte[] fileBytes = inputStream.readAllBytes();
 
             MultipartBodyBuilder builder = new MultipartBodyBuilder();
-            builder.part("file", fileBytes).filename(fileName);
+            builder.part(fileName, fileBytes).filename(fileName);
 
             String backendUrl = "http://localhost:8080";
             LOGGER.info("Uploading file: {} to {}", fileName, backendUrl);
