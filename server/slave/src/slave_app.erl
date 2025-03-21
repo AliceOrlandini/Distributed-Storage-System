@@ -93,12 +93,17 @@ add_node(0, Nodes, _) ->
 loop() ->
     receive
         % receive a message from the master with the file name and content
-        {file, FileName, FileContent} ->
+        {file, FileName, FileContent, ReplicationNode} ->
             io:format("[INFO] Received file: ~p~n", [FileName]),
             save_file:save_file(FileName, FileContent, node()),
+            io:format("[INFO] Send file to replication node: ~p~n", [ReplicationNode]),
+            {slave, ReplicationNode} ! {file, FileName, FileContent},
             loop();
-
-        Other ->
-            io:format("[INFO] Unknown messagge: ~p~n", [Other]),
+        {file, FileName, FileContent} ->
+            io:format("[INFO] Received replicated file: ~p~n", [FileName]),
+            save_file:save_file(FileName, FileContent, node()),
+            loop();
+        _Other ->
+            io:format("[INFO] Unknown messagge.~n"),
             loop()
     end.
