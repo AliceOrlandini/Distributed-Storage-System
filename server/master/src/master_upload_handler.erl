@@ -28,15 +28,26 @@ handle(_, Req, _) ->
 
 send_chunks_to_node([Head|Tail], Username, FileName, Position) ->
     Nodes = get_slave_nodes(),
-    LenNodes = length(Nodes),
+
     Hash = hash_chunck:get_hash(Head),
-    Integer = binary:decode_unsigned(Hash),
-    NodeToSave = Integer rem LenNodes,
-    NodeDest = lists:nth(NodeToSave + 1, Nodes),
-    {slave, NodeDest} ! {file, Hash, Head},
-    master_db:insert_chunk(Username, FileName, Hash, Position, [NodeDest]),
-    send_chunks_to_node(Tail, Username, FileName, Position+1);
-send_chunks_to_node([],_,_,_) ->
+
+    % select the main node as the one with the least number of chunks
+    MainNode = get_least_loaded_node(Nodes, undefined),
+    io:format("[INFO] Selected main slave node: ~p~n", [MainNode]),
+
+    % select the replication node excluding the main node
+    ReplicationNode = get_least_loaded_node(Nodes, MainNode),
+    io:format("[INFO] Selected replication slave node: ~p~n", [ReplicationNode]),
+
+    % send the chunk to the main node
+    {slave, MainNode} ! {file, Hash, Head, ReplicationNode},
+
+    % insert the chunk in the database
+    master_db:insert_chunk(Username, FileName, Hash, Position, [MainNode, ReplicationNode]),
+
+    % process the next chunk
+    send_chunks_to_node(Tail, Username, FileName, Position + 1);
+send_chunks_to_node([], _, _, _) ->
     ok.
 
 get_slave_nodes() ->
@@ -45,4 +56,20 @@ get_slave_nodes() ->
             lists:map(fun(NodeStr) -> list_to_atom(NodeStr) end, NodesStr);
         undefined ->
             []
+    end.
+
+get_least_loaded_node(Nodes, ExcludedNode) ->
+    % filter out the excluded node
+    FilteredNodes = lists:filter(fun(Node) -> Node =/= ExcludedNode end, Nodes),
+    % create a list of tuples with the node and the number of chunks
+    LoadedNodes = [{Node, master_db:count_chunks(Node)} || Node <- FilteredNodes],
+    io:format("[INFO] Loaded nodes: ~p~n", [LoadedNodes]),
+    % if there are no nodes available, return an error
+    case LoadedNodes of
+        [] ->
+            error(no_nodes_available);
+        _ ->
+            % select the node with the least number of chunks
+            [{LeastLoadedNode, _}|_] = lists:keysort(2, LoadedNodes),
+            LeastLoadedNode
     end.

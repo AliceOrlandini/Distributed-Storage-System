@@ -1,5 +1,5 @@
 -module(master_db).
--export([create_tables/1, insert_file/3, get_file/2,get_files/1, insert_chunk/5, get_chunks/3, insert_user/2, get_user/1]).
+-export([create_tables/1, insert_file/3, get_file/2,get_files/1, insert_chunk/5, get_chunks/3, insert_user/2, get_user/1, count_chunks/1]).
 
 -record(user_file, {user_file, num_chuncks}).
 -record(chunk, {id, chunk_name, nodes}).
@@ -121,6 +121,18 @@ get_chunks(Username, FileName, Chuncks, Acc) when Chuncks >= 0 ->
 get_chunks(_, _, Chuncks, Acc) when Chuncks < 0 ->
     Acc.
     
-
-
+count_chunks(Node) ->
+    % accumulator function, for each chunk record, 
+    % if the node is in the list of nodes, increment the accumulator
+    F = fun(#chunk{nodes = Nodes}, Acc) ->
+                case lists:member(Node, Nodes) of
+                    true -> Acc + 1;
+                    false -> Acc
+                end
+            end,
+    % use a mnesia transaction to fold over the chunk table
+    {atomic, Count} = mnesia:transaction(fun() ->
+            mnesia:foldl(F, 0, chunk)
+    end),
+    Count.
     
