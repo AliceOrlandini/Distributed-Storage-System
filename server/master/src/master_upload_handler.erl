@@ -19,14 +19,14 @@ handle(<<"POST">>,  Req, Username) ->
     Body = [{<<"filename">>, Filename}, {<<"base64_file">>, base64:encode(Data)}],
     Chunks = file_chunks:devide_into_chunks(Data, 80*1024),
     io:format("[INFO] FileName: ~p~n", [Filename]),
-    master_db:insert_file(Username, Filename, length(Chunks)),
-    send_chunks_to_node(Chunks, Username, Filename, 0),
+    {ok, FileID} = master_db:insert_file(Username, Filename, length(Chunks)),
+    send_chunks_to_node(Chunks, FileID, 0),
     {ok, Body, Req};
 handle(_, Req, _) ->
     cowboy_req:reply(404, #{}, <<"Not found">>, Req).
 
 
-send_chunks_to_node([Head|Tail], Username, FileName, Position) ->
+send_chunks_to_node([Head|Tail], FileID, Position) ->
     Nodes = get_slave_nodes(),
 
     Hash = hash_chunck:get_hash(Head),
@@ -43,11 +43,11 @@ send_chunks_to_node([Head|Tail], Username, FileName, Position) ->
     {slave, MainNode} ! {file, Hash, Head, ReplicationNode},
 
     % insert the chunk in the database
-    master_db:insert_chunk(Username, FileName, Hash, Position, [MainNode, ReplicationNode]),
+    master_db:insert_chunk(FileID, Hash, Position, [MainNode, ReplicationNode]),
 
     % process the next chunk
-    send_chunks_to_node(Tail, Username, FileName, Position + 1);
-send_chunks_to_node([], _, _, _) ->
+    send_chunks_to_node(Tail, FileID, Position + 1);
+send_chunks_to_node([], _, _) ->
     ok.
 
 get_slave_nodes() ->

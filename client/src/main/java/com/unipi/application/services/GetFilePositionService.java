@@ -17,7 +17,7 @@ public class GetFilePositionService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GetFilePositionService.class);
 
-    public List<FilePositionModel> getFilePositions(String jwtToken, String fileName) {
+    public List<FilePositionModel> getFilePositions(String jwtToken, String fileID) {
         try {
             String backendUrl = "http://localhost:8080";
             LOGGER.info("Fetching file positions from {}", backendUrl);
@@ -26,7 +26,7 @@ public class GetFilePositionService {
                     .get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/fileparts")
-                            .queryParam("file", fileName)
+                            .queryParam("fileID", fileID)
                             .build())
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtToken)
                     .exchangeToFlux(response -> {

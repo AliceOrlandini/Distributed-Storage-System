@@ -1,7 +1,9 @@
 -module(master_db).
--export([create_tables/1, insert_file/3, get_file/2,get_files/1, insert_chunk/5, get_chunks/3, insert_user/2, get_user/1, count_chunks/1]).
+-export([test/0, create_tables/1, insert_file/3, insert_file/4, 
+    get_file/1, get_files/1, insert_chunk/4, get_chunks/2, 
+    insert_user/2, get_user/1, count_chunks/1]).
 
--record(user_file, {user_file, num_chuncks}).
+-record(user_file, {user_file, file_id, num_chuncks}).
 -record(chunk, {id, chunk_name, nodes}).
 -record(user, {username, password}).
 
@@ -32,6 +34,7 @@ get_files(Username) ->
     F = mnesia:transaction(fun() ->
         mnesia:match_object(#user_file{
             user_file   = {Username, '_'},
+            file_id = '_',
             num_chuncks = '_'
         })
     end),
@@ -69,31 +72,53 @@ get_user(Username) ->
     end.
 
 insert_file(Username, FileName, NumChunks) ->
+    FileID = now_secs_hashed_hex(),
     F = mnesia:transaction(fun() ->
-        mnesia:write(#user_file{user_file = {Username, FileName}, num_chuncks = NumChunks})
+        mnesia:write(#user_file{user_file = {Username, FileName}, 
+            file_id = FileID, num_chuncks = NumChunks})
     end),
     case F of
-        {atomic, ok} ->             
+        {atomic, ok} ->
             io:format("[INFO] File successfully inserted~n"),
-            {ok, inserted};
+            {ok, FileID};
         {aborted, Reason} -> 
             io:format("[INFO] File not inserted ~p ~n", [Reason]),
             {error, Reason}
     end.
 
-get_file(Username, FileName) ->
+insert_file(Username, FileName, FileID, NumChunks) ->
+
     F = mnesia:transaction(fun() ->
-        mnesia:read({user_file, {Username, FileName}})
+        mnesia:write(#user_file{user_file = {Username, FileName}, file_id = FileID, num_chuncks = NumChunks})
     end),
     case F of
+        {atomic, ok} ->
+            io:format("[INFO] File successfully inserted ~p ~n",[#user_file{user_file = {Username, FileName}, file_id = FileID, num_chuncks = NumChunks}]),
+            {ok, FileID};
+        {aborted, Reason} -> 
+            io:format("[INFO] File not inserted ~p ~n", [Reason]),
+            {error, Reason}
+    end.
+    
+
+get_file(FileID) ->
+    F = mnesia:transaction(fun() ->
+        mnesia:match_object(#user_file{
+            user_file   = {'_', '_'},
+            file_id = FileID,
+            num_chuncks = '_'
+        })
+    end),
+    io:format("[INFO] Files: ~p~n", [F]),
+    case F of
         {atomic, []} -> {error, not_found};
-        {atomic, [Record]} -> {ok, Record};
+        {atomic, [Records]} -> {ok, Records};
         {aborted, Reason} -> {error, Reason}
     end.
 
-insert_chunk(Username, FileName, ChunkName, Position, Nodes) ->
+insert_chunk(FileID, ChunkName, Position, Nodes) ->
     F = mnesia:transaction(fun() ->
-        mnesia:write(#chunk{id = {Username, FileName, Position},
+        mnesia:write(#chunk{id = {FileID, Position},
                                 chunk_name = ChunkName,
                                 nodes = Nodes})
     end),
@@ -106,19 +131,19 @@ insert_chunk(Username, FileName, ChunkName, Position, Nodes) ->
             {error, Reason}
     end.
 
-get_chunks(Username, FileName, Chuncks) ->
-    get_chunks(Username, FileName, Chuncks - 1, []).
+get_chunks(FileID, Chuncks) ->
+    get_chunks(FileID, Chuncks - 1, []).
 
-get_chunks(Username, FileName, Chuncks, Acc) when Chuncks >= 0 ->
+get_chunks(FileID, Chuncks, Acc) when Chuncks >= 0 ->
     F = mnesia:transaction(fun() ->
-        mnesia:read({chunk, {Username, FileName, Chuncks}})
+        mnesia:read({chunk, {FileID, Chuncks}})
     end),
     case F of
         {atomic, []} -> {error, not_found};
-        {atomic, Records} -> get_chunks(Username, FileName, Chuncks - 1, [Records] ++ Acc);
+        {atomic, Records} -> get_chunks(FileID, Chuncks - 1, [Records] ++ Acc);
         {aborted, Reason} -> {error, Reason}
     end;
-get_chunks(_, _, Chuncks, Acc) when Chuncks < 0 ->
+get_chunks(_, Chuncks, Acc) when Chuncks < 0 ->
     Acc.
     
 count_chunks(Node) ->
@@ -136,3 +161,13 @@ count_chunks(Node) ->
     end),
     Count.
     
+now_secs_hashed_hex() ->
+    TS = os:system_time(second),
+    HashBin = crypto:hash(sha256, integer_to_binary(TS)),
+    HexStr = lists:flatten([io_lib:format("~2.16.0B", [X]) || X <- binary_to_list(HashBin)]),
+    list_to_binary(HexStr).
+    
+test() -> 
+    mnesia:activity(transaction, fun() ->
+    mnesia:match_object(#user_file{file_id='_', user_file='_', num_chuncks='_'})
+    end).

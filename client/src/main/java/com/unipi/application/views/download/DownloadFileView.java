@@ -1,5 +1,6 @@
 package com.unipi.application.views.download;
 
+import com.unipi.application.model.FileDetails;
 import com.unipi.application.model.ChunckModel;
 import com.unipi.application.model.FilePositionModel;
 import com.unipi.application.services.GetChunkService;
@@ -38,31 +39,30 @@ public class DownloadFileView extends VerticalLayout {
 
     public DownloadFileView() {
         String jwtToken = VaadinSession.getCurrent().getAttribute("jwt").toString();
-        ComboBox<String> fileComboBox = new ComboBox<>("Select a file");
-        List<String> files = getFilesService.getFiles(jwtToken);
+        ComboBox<FileDetails> fileComboBox = new ComboBox<>("Select a file");
+        List<FileDetails> files = getFilesService.getFiles(jwtToken);
         if (files.isEmpty()) {
             Notification.show("No files available", 10000, Notification.Position.TOP_CENTER)
                     .addThemeVariants(NotificationVariant.LUMO_WARNING);
         }
+
         fileComboBox.setItems(files);
+
+        fileComboBox.setItemLabelGenerator(FileDetails::getFileName);
         fileComboBox.setPlaceholder("Choose a file");
 
 
         Button downloadButton = new Button("Download and Save");
         downloadButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         downloadButton.addClickListener(event -> {
-            String selectedFile = fileComboBox.getValue();
-            String savePath = System.getProperty("user.home") + "/Downloads/" + selectedFile;
+            FileDetails selectedFile = fileComboBox.getValue();
 
-            if (selectedFile == null || selectedFile.isEmpty()) {
-                Notification.show("Select a file", 3000, Notification.Position.TOP_CENTER)
-                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
-                return;
-            }
+            String savePath = System.getProperty("user.home") + "/Downloads/" + selectedFile.getFileName();
+
             LOGGER.info("Downloading file {} to {}", selectedFile, savePath);
 
             // takes the ip addresses of the servers that have the chunks of the selected files
-            List<FilePositionModel> filePositions = getFilePositionService.getFilePositions(jwtToken, selectedFile);
+            List<FilePositionModel> filePositions = getFilePositionService.getFilePositions(jwtToken, selectedFile.getFileID());
             if (filePositions.isEmpty()) {
                 Notification.show("No file positions available", 10000, Notification.Position.TOP_CENTER)
                         .addThemeVariants(NotificationVariant.LUMO_ERROR);

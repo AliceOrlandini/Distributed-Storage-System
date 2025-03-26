@@ -17,35 +17,35 @@ init(Req, Opts) ->
     {ok, Req2, Opts}.
 
 
-handle(<<"GET">>, Req, Username, SecretKey) ->
+handle(<<"GET">>, Req, _Username, SecretKey) ->
     [Qs] = cowboy_req:parse_qs(Req),
     io:format("[INFO] Query string: ~p~n", [Qs]),
-    {<<"file">>, File} = Qs,
-    io:format("[INFO] File string: ~p~n", [File]),
+    {<<"fileID">>, FileID} = Qs,
+    io:format("[INFO] File string: ~p~n", [FileID]),
 
    
-    case master_db:get_file(Username,File) of
+    case master_db:get_file(FileID) of
         {ok, Chuncks} ->
             io:format("[INFO] Chuncks: ~p~n", [Chuncks]),
-            {user_file, {_, _}, NumChunks} = Chuncks,
-            Json = get_chunks_as_json(Username, File, NumChunks, SecretKey),
+            {user_file, {_, _},_, NumChunks} = Chuncks,
+            Json = get_chunks_as_json( FileID, NumChunks, SecretKey),
             cowboy_req:reply(200, #{<<"content-type">> => <<"application/json">>}, Json, Req);
         {error, Reason} ->
-        cowboy_req:reply(500, #{}, Reason, Req)
+            cowboy_req:reply(500, #{}, Reason, Req)
     end;
 handle(_, Req, _, _) ->
     cowboy_req:reply(405, #{}, <<"method not allowed">>, Req).
 
-get_chunks_as_json(Username, FileName, Chuncks, SecretKey) ->
+get_chunks_as_json(FileName, Chuncks, SecretKey) ->
     %% Recupera i record dei chunk dalla query
-    Records = master_db:get_chunks(Username, FileName, Chuncks),
+    Records = master_db:get_chunks(FileName, Chuncks),
     io:format("[INFO] Records: ~p~n", [Records]),
     %% Trasforma ogni record in una mappa
     Files = chunk_to_map(Records, [], SecretKey),
     jiffy:encode(Files).
 
 
-chunk_to_map([[{chunk, {_Username, _Filename, ChunkPosition}, ChunkName, Nodes}]|Tail], Acc, SecretKey) ->
+chunk_to_map([[{chunk, {_Filename, ChunkPosition}, ChunkName, Nodes}]|Tail], Acc, SecretKey) ->
     TokenChunkName = jwt:encode_file_name(ChunkName, SecretKey),
     IP = case Nodes of
             [] -> undefined;
@@ -55,11 +55,10 @@ chunk_to_map([[{chunk, {_Username, _Filename, ChunkPosition}, ChunkName, Nodes}]
     io:format("[INFO] IP: ~p~n", [IpFormatted]),
     IpFormattedBin = list_to_binary(IpFormatted),
     Map = #{<<"ip">> => IpFormattedBin,
-            <<"chunkName">> => TokenChunkName,
+            <<"chunkName">> => TokenChunkName,  
             <<"chunkPosition">> => ChunkPosition},
     chunk_to_map(Tail, [Map | Acc], SecretKey);
 chunk_to_map([], Acc, _) ->
-    %% Se vuoi mantenere l'ordine originale, puoi fare lists:reverse(Acc)
     lists:reverse(Acc).
 
 

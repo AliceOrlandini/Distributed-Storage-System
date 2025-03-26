@@ -26,7 +26,13 @@ handle(_, Req, _) ->
     cowboy_req:reply(405, #{}, <<"method not allowed">>, Req).
 
 
-get_files_name([{user_file, {_Username, Filename}, _NumChunks}|Tail], Acc) ->
-    get_files_name(Tail, [Filename|Acc]);
+get_files_name([{user_file, {_Username, Filename}, FileID, _NumChunks}|Tail], Acc) ->
+    FileIDStr = case FileID of
+        Bin when is_binary(Bin) ->
+            Bin;                                   % <<"...">>
+        Str when is_list(Str) ->
+            list_to_binary(lists:flatten(Str))   % converte "..." in <<"...">>
+    end,
+    get_files_name(Tail, [#{fileName => Filename, fileID => FileIDStr}|Acc]);
 get_files_name([],Acc) ->
     Acc.

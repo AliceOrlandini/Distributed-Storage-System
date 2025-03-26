@@ -2,6 +2,7 @@ package com.unipi.application.services;
 
 import java.util.Collections;
 import java.util.List;
+import com.unipi.application.model.FileDetails;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,7 +17,7 @@ public class GetFilesService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GetFilesService.class);
 
-    public List<String> getFiles(String jwtToken) {
+    public List<FileDetails> getFiles(String jwtToken) {
         try {
             String backendUrl = "http://localhost:8080";
             LOGGER.info("Fetching file list from {}", backendUrl);
@@ -47,14 +48,15 @@ public class GetFilesService {
     }
 
     public static class FilesResponse {
-        private List<String> files;
+        private List<FileDetails> files;
 
-        public List<String> getFiles() {
+        public List<FileDetails> getFiles() {
             return files;
         }
 
-        public void setFiles(List<String> files) {
+        public void setFiles(List<FileDetails> files) {
             this.files = files;
         }
     }
+
 }
