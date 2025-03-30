@@ -41,6 +41,7 @@ start(_StartType, _StartArgs) ->
     lists:foreach(fun(Node) ->
         io:format("[INFO] Ping ~p: ~p~n", [Node, net_adm:ping(Node)])
     end, Nodes),
+    init_db(node()),
 
     % spawn a new process to handle the connections
     register(slave, spawn(fun loop/0)),
@@ -92,7 +93,6 @@ add_node(0, Nodes, _) ->
 
 loop() ->
     receive
-        % receive a message from the master with the file name and content
         {file, FileName, FileContent, ReplicationNode} ->
             io:format("[INFO] Received file: ~p~n", [FileName]),
             save_file:save_file(FileName, FileContent, node()),
@@ -103,7 +103,40 @@ loop() ->
             io:format("[INFO] Received replicated file: ~p~n", [FileName]),
             save_file:save_file(FileName, FileContent, node()),
             loop();
+        {status} -> 
+            io:format("[INFO] Received status request.~n"),
+            case slave_db:get_status() of
+                {ok, Status} ->
+                    Pending = maps:get(pending_requests, Status),
+                    Possible = maps:get(possible_requests, Status), 
+                    io:format("[INFO] Pending: ~p~n", [Pending]),
+                    io:format("[INFO] Possible: ~p~n", [Possible]),
+                    % TODO inviare risposta
+                    slave_db:update_status_field(possible_requests, 1);
+                {error, not_found} ->
+                    io:format("[INFO] Status not found~n");
+                {error, Reason} ->
+                    io:format("[INFO] Error getting status: ~p~n", [Reason])
+            end,
+            loop();
+        {choose} ->
+            io:format("[INFO] Received choose request.~n"),
+            slave_db:update_status_field(pending_requests, 1),
+            slave_db:update_status_field(possible_requests, -1),
+            % TODO inviare risposta
+            loop();
+        {not_choose} -> 
+            io:format("[INFO] Received not choose request.~n"),
+            slave_db:update_status_field(possible_requests, -1),
+            % TODO inviare risposta
+            loop();
         _Other ->
             io:format("[INFO] Unknown messagge.~n"),
             loop()
     end.
+
+init_db(Node) ->
+    mnesia:create_schema(Node),
+    io:format("[INFO] Mnesia started on node: ~p~n", [Node]),
+    mnesia:start(),
+    slave_db:create_tables(Node).

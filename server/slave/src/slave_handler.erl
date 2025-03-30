@@ -20,13 +20,15 @@ handle(<<"GET">>, Req, SecretKey) ->
                 _ ->
                     case retrieve_file:retrieve_file(binary_to_list(FileName), node()) of
                         {ok, FileContent} ->
-                            cowboy_req:reply(200, #{<<"content-type">> => <<"application/json">>}, FileContent, Req);
+                            cowboy_req:reply(200, #{<<"content-type">> => <<"application/json">>}, FileContent, Req),
+                            slave_db:update_status_field(pending_requests, -1);
                         {error, file_not_found} ->
                             ErrorMsg = <<"file not found">>,
                             cowboy_req:reply(404, #{}, ErrorMsg, Req);
                         {error, Reason} ->
                             ErrorMsg = lists:flatten(io_lib:format("error during file retrieval: ~p", [Reason])),
-                            cowboy_req:reply(500, #{}, ErrorMsg, Req)
+                            cowboy_req:reply(500, #{}, ErrorMsg, Req),
+                            slave_db:update_status_field(pending_requests, -1)
                     end
             end;
         {error, Reason} ->
