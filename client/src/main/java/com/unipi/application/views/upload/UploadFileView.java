@@ -26,7 +26,16 @@ public class UploadFileView extends Div {
     public UploadFileView() {
         MultiFileMemoryBuffer buffer = new MultiFileMemoryBuffer();
         Upload upload = new Upload(buffer);
+        int maxFileSizeInBytes = 100 * 1024 * 1024; // 10MB
+        upload.setMaxFileSize(maxFileSizeInBytes);
+        upload.setAcceptedFileTypes("application/pdf", ".pdf");
+        upload.addFileRejectedListener(event -> {
+            String errorMessage = event.getErrorMessage();
 
+            Notification notification = Notification.show(errorMessage, 5000,
+                    Notification.Position.MIDDLE);
+            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+        });
         upload.addSucceededListener(event -> {
             String fileName = event.getFileName();
             InputStream inputStream = buffer.getInputStream(fileName);

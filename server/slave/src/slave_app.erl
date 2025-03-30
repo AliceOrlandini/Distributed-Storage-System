@@ -103,7 +103,7 @@ loop() ->
             io:format("[INFO] Received replicated file: ~p~n", [FileName]),
             save_file:save_file(FileName, FileContent, node()),
             loop();
-        {status} -> 
+        {status, _ServerIP, ServerPid} -> 
             io:format("[INFO] Received status request.~n"),
             case slave_db:get_status() of
                 {ok, Status} ->
@@ -111,7 +111,7 @@ loop() ->
                     Possible = maps:get(possible_requests, Status), 
                     io:format("[INFO] Pending: ~p~n", [Pending]),
                     io:format("[INFO] Possible: ~p~n", [Possible]),
-                    % TODO inviare risposta
+                    ServerPid ! {status, Pending, Possible},
                     slave_db:update_status_field(possible_requests, 1);
                 {error, not_found} ->
                     io:format("[INFO] Status not found~n");
@@ -123,12 +123,10 @@ loop() ->
             io:format("[INFO] Received choose request.~n"),
             slave_db:update_status_field(pending_requests, 1),
             slave_db:update_status_field(possible_requests, -1),
-            % TODO inviare risposta
             loop();
         {not_choose} -> 
             io:format("[INFO] Received not choose request.~n"),
             slave_db:update_status_field(possible_requests, -1),
-            % TODO inviare risposta
             loop();
         _Other ->
             io:format("[INFO] Unknown messagge.~n"),

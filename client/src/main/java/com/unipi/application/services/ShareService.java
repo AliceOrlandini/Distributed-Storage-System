@@ -22,7 +22,7 @@ public class ShareService {
         try {
             String registrationResponse = WebClient.create(backendUrl)
                     .post()
-                    .uri("/share")
+                            .uri("/share")
                     .contentType(MediaType.APPLICATION_JSON)
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtToken)
                     .bodyValue(request)
