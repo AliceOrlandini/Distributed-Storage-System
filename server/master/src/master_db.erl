@@ -1,6 +1,6 @@
 -module(master_db).
 -export([test/0, create_tables/1, insert_file/3, insert_file/4, 
-    get_file/1, get_files/1, insert_chunk/4, get_chunks/2, 
+    get_file/2, get_files/1, insert_chunk/4, get_chunks/2, 
     insert_user/2, get_user/1, count_chunks/1]).
 
 -record(user_file, {user_file, file_id, num_chuncks}).
@@ -79,7 +79,8 @@ insert_file(Username, FileName, NumChunks) ->
     end),
     case F of
         {atomic, ok} ->
-            io:format("[INFO] File successfully inserted~n"),
+            io:format("[INFO] File successfully inserted ~p ~n", 
+                [#user_file{user_file = {Username, FileName}, file_id = FileID, num_chuncks = NumChunks}]),
             {ok, FileID};
         {aborted, Reason} -> 
             io:format("[INFO] File not inserted ~p ~n", [Reason]),
@@ -87,7 +88,6 @@ insert_file(Username, FileName, NumChunks) ->
     end.
 
 insert_file(Username, FileName, FileID, NumChunks) ->
-
     F = mnesia:transaction(fun() ->
         mnesia:write(#user_file{user_file = {Username, FileName}, file_id = FileID, num_chuncks = NumChunks})
     end),
@@ -101,10 +101,10 @@ insert_file(Username, FileName, FileID, NumChunks) ->
     end.
     
 
-get_file(FileID) ->
+get_file(Username, FileID) ->
     F = mnesia:transaction(fun() ->
         mnesia:match_object(#user_file{
-            user_file   = {'_', '_'},
+            user_file   = {Username, '_'},
             file_id = FileID,
             num_chuncks = '_'
         })

@@ -17,14 +17,14 @@ init(Req, Opts) ->
     {ok, Req2, Opts}.
 
 
-handle(<<"GET">>, Req, _Username, SecretKey) ->
+handle(<<"GET">>, Req, Username, SecretKey) ->
     [Qs] = cowboy_req:parse_qs(Req),
     io:format("[INFO] Query string: ~p~n", [Qs]),
     {<<"fileID">>, FileID} = Qs,
     io:format("[INFO] File string: ~p~n", [FileID]),
 
    
-    case master_db:get_file(FileID) of
+    case master_db:get_file(Username, FileID) of
         {ok, Chuncks} ->
             io:format("[INFO] Chuncks: ~p~n", [Chuncks]),
             {user_file, {_, _},_, NumChunks} = Chuncks,
@@ -47,11 +47,9 @@ get_chunks_as_json(FileName, Chuncks, SecretKey) ->
 
 chunk_to_map([[{chunk, {_Filename, ChunkPosition}, ChunkName, Nodes}]|Tail], Acc, SecretKey) ->
     TokenChunkName = jwt:encode_file_name(ChunkName, SecretKey),
-    IP = case Nodes of
-            [] -> undefined;
-            [FirstNode | _] -> FirstNode
-            end,
-    IpFormatted = node_to_url(IP),
+    NodeChoosen = choose_node(Nodes),
+    update_slaves(Nodes, NodeChoosen),
+    IpFormatted = node_to_url(NodeChoosen),
     io:format("[INFO] IP: ~p~n", [IpFormatted]),
     IpFormattedBin = list_to_binary(IpFormatted),
     Map = #{<<"ip">> => IpFormattedBin,
@@ -78,3 +76,36 @@ node_to_url(NodeStr) when is_list(NodeStr) ->
         _ ->
             "http://" ++ NodeStr  % fallback
     end.
+
+
+choose_node(Nodes) when is_list(Nodes) ->
+    choose_node(Nodes, []).
+
+choose_node([Head|Tail], Acc) ->
+    {slave, Head} ! {status, node(), self()},
+    receive
+        {status, Pending, Possible} ->
+            Value = Pending + Possible * 0.5,
+            io:format("[INFO] Node: ~p, Pending: ~p, Possible: ~p, Value: ~p~n", [Head, Pending, Possible, Value]),
+            choose_node(Tail, [{Head, Value} | Acc])
+    end;
+choose_node([], Acc) ->
+    % Sort the list of nodes by value
+    Sorted = lists:sort(fun({_, V1}, {_, V2}) -> V1 < V2 end, Acc),
+    io:format("[INFO] Sorted nodes: ~p~n", [Sorted]),
+    % Get the node with the least value
+    case Sorted of
+        [{Node, _}|_] -> Node;
+        [] -> undefined
+    end.
+
+update_slaves([Head | Tail], Choosen) when Head =:= Choosen ->
+    {slave, Head} ! {choose},
+    io:format("[INFO] Choosen node: ~p~n", [Head]),
+    update_slaves(Tail, Choosen);
+update_slaves([Head | Tail], Choosen) when Head =/= Choosen ->
+    io:format("[INFO] Not choosen node: ~p~n", [Head]),
+    {slave, Head} ! {not_choose},
+    update_slaves(Tail, Choosen);
+update_slaves([], _) ->
+    ok.
