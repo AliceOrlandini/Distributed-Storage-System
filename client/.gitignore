@@ -2,3 +2,7 @@
 src/main/frontend/generated/
 src/main/frontend/index.html
 target/
+javafx-sdk-21.0.6/*
+custom-runtime/*
+.mvn/*
+dist/*
