@@ -1,4 +1,4 @@
--module(jwt).
+-module(master_jwt).
 -export([encode_file_name/2,encode_username/2, decode/2]).
 
 encode_file_name(FileName, Key) ->

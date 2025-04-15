@@ -1,64 +1,74 @@
 -module(master_share_handler).
 -export([init/2]).
-
 -behaviour(cowboy_handler).
 
 -record(file_shared, {username, file_id}).
 
 init(Req, Opts) ->
-    Method = cowboy_req:method(Req),
     [#{username := Username}] = Opts,
-    Req2 = handle(Method, Req, Username),
+    Method = cowboy_req:method(Req),
+    Req2 = handle_request(Method, Req, Username),
     {ok, Req2, Opts}.
 
-handle(<<"POST">>, Req, Username) ->
+handle_request(<<"POST">>, Req, Username) ->
     case cowboy_req:read_body(Req) of
         {ok, Body, Req2} ->
-            io:format("[INFO] Body of the request: ~p~n", [Body]),
-            case jiffy:decode(Body, [return_maps]) of
-                Json when is_map(Json) ->
-                    io:format("[DEBUG] chepalleeee"),
-                    case map_to_file_shared(Json) of
-                        #file_shared{} = FileToShare ->
-                            case check_file_exists(FileToShare#file_shared.file_id, Username) of
-                                {error, Reason} ->
-                                    cowboy_req:reply(500, #{}, Reason, Req2);
-                                {false, _, _} ->
-                                    cowboy_req:reply(404, #{}, <<"File not found">>, Req2);
-                                {true, FileName, NumChunks} ->
-                                    master_db:insert_file(FileToShare#file_shared.username, FileName, FileToShare#file_shared.file_id, NumChunks)
-                            end;
-                        {error, ErrorMsg} ->
-                            cowboy_req:reply(400, #{}, ErrorMsg, Req2)
-                    end;
-                _Other ->
-                    io:format("[DEBUG] qualcosa non va ~p",[_Other]),
-                    cowboy_req:reply(400, #{}, <<"Body non valido">>, Req2)
-            end;
+            io:format("[INFO] Request body: ~p~n", [Body]),
+            process_body(Body, Req2, Username);
         {error, Reason} ->
-            io:format("[DEBUG] qualcosa non va per niente ~p",[Reason]),
-            ErrorMsg = io_lib:format("impossible to read the body: ~p", [Reason]),
+            io:format("[DEBUG] Failed to read body: ~p~n", [Reason]),
+            ErrorMsg = io_lib:format("Unable to read body: ~p", [Reason]),
             cowboy_req:reply(400, #{}, list_to_binary(ErrorMsg), Req)
     end;
-handle(_, Req, _) ->
-    cowboy_req:reply(405, #{}, <<"Metodo non consentito">>, Req).
+handle_request(_, Req, _) ->
+    cowboy_req:reply(405, #{}, <<"Method not allowed">>, Req).
 
-
-map_to_file_shared(Map) ->
-    case {maps:is_key(<<"username">>, Map), maps:is_key(<<"fileID">>, Map)} of
-        {true, true} ->
-            io:format("[INFO] parsed: ~p~n", [#file_shared{username = maps:get(<<"username">>, Map), 
-            file_id =  maps:get(<<"fileID">>, Map)}]),
-            #file_shared{username = maps:get(<<"username">>, Map), 
-                file_id =  maps:get(<<"fileID">>, Map)};
-        _ ->
-            {error, <<"missing parameters">>}
+process_body(Body, Req, Username) ->
+    case jiffy:decode(Body, [return_maps]) of
+        Json when is_map(Json) ->
+            process_json(Json, Req, Username);
+        _Other ->
+            io:format("[DEBUG] Invalid JSON: ~p~n", [Body]),
+            cowboy_req:reply(400, #{}, <<"Invalid JSON body">>, Req)
     end.
 
-check_file_exists(FileID, Username) ->
-    case master_db:get_file(FileID) of 
-        {ok, {user_file, {UsernameOwner, FileName}, FileID, NumChunks}} ->
-            {Username =:= UsernameOwner, FileName, NumChunks};
+process_json(Json, Req, Username) ->
+    case json_to_file_shared(Json) of
+        #file_shared{} = FileToShare ->
+            process_file_share(FileToShare, Req, Username);
+        {error, ErrorMsg} ->
+            cowboy_req:reply(400, #{}, ErrorMsg, Req)
+    end.
+
+json_to_file_shared(Map) ->
+    case {maps:is_key(<<"username">>, Map), maps:is_key(<<"fileID">>, Map)} of
+        {true, true} ->
+            FileShared = #file_shared{
+                username = maps:get(<<"username">>, Map),
+                file_id = maps:get(<<"fileID">>, Map)
+            },
+            io:format("[INFO] Parsed file shared: ~p~n", [FileShared]),
+            FileShared;
+        _ ->
+            {error, <<"Missing parameters">>}
+    end.
+
+process_file_share(FileToShare, Req, RequestUsername) ->
+    case verify_file(FileToShare#file_shared.file_id, RequestUsername) of
+        {error, Reason} ->
+            cowboy_req:reply(500, #{}, Reason, Req);
+        {false, _, _} ->
+            cowboy_req:reply(404, #{}, <<"File not found">>, Req);
+        {true, FileName, NumChunks} ->
+            master_db:insert_file(FileToShare#file_shared.username, FileName, 
+                                  FileToShare#file_shared.file_id, NumChunks)
+    end.
+
+verify_file(FileID, Username) ->
+    io:format("~p ~p~n", [FileID, Username]),
+    case master_db:get_file(Username, FileID) of 
+        {ok, {user_file, {OwnerUsername, FileName}, FileID, NumChunks}} ->
+            {Username =:= OwnerUsername, FileName, NumChunks};
         {error, Reason} -> 
             {error, Reason}
     end.

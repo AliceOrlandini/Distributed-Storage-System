@@ -1,111 +1,116 @@
 -module(master_file_parts_handler).
 -export([init/2]).
-
 -behaviour(cowboy_handler).
 
 init(Req, Opts) ->
-    SecretKey = case lists:search(fun(M1) -> maps:is_key(secret_key, M1) end, Opts) of
-        {value, M1} -> maps:get(secret_key, M1);
-        false -> undefined
-    end,
-    Username = case lists:search(fun(M2) -> maps:is_key(username, M2) end, Opts) of
-        {value, M2} -> maps:get(username, M2);
-        false -> undefined
-    end,
+    SecretKey = extract_option(secret_key, Opts),
+    Username  = extract_option(username, Opts),
     Method = cowboy_req:method(Req),
-    Req2 = handle(Method, Req, Username, SecretKey),
+    Req2 = handle_request(Method, Req, Username, SecretKey),
     {ok, Req2, Opts}.
 
+extract_option(Key, Opts) ->
+    case lists:filter(fun(Map) -> maps:is_key(Key, Map) end, Opts) of
+        [Map | _] -> maps:get(Key, Map);
+        [] -> undefined
+    end.
 
-handle(<<"GET">>, Req, Username, SecretKey) ->
-    [Qs] = cowboy_req:parse_qs(Req),
-    io:format("[INFO] Query string: ~p~n", [Qs]),
-    {<<"fileID">>, FileID} = Qs,
-    io:format("[INFO] File string: ~p~n", [FileID]),
+handle_request(<<"GET">>, Req, Username, SecretKey) ->
+    Qs0 = cowboy_req:parse_qs(Req),
+    Qs = case is_list(Qs0) of
+             true -> Qs0;
+             false -> [Qs0]
+         end,
+    handle_get(Qs, Req, Username, SecretKey);
+handle_request(_, Req, _, _) ->
+    cowboy_req:reply(405, #{}, <<"Method not allowed">>, Req).
 
-   
+handle_get(Qs, Req, Username, SecretKey) ->
+    case proplists:get_value(<<"fileID">>, Qs, undefined) of
+        undefined ->
+            cowboy_req:reply(400, #{}, <<"Missing fileID parameter">>, Req);
+        FileID ->
+            io:format("[INFO] FileID: ~p~n", [FileID]),
+            process_file_parts(Username, FileID, Req, SecretKey)
+    end.
+    
+process_file_parts(Username, FileID, Req, SecretKey) ->
     case master_db:get_file(Username, FileID) of
-        {ok, Chuncks} ->
-            io:format("[INFO] Chuncks: ~p~n", [Chuncks]),
-            {user_file, {_, _},_, NumChunks} = Chuncks,
-            Json = get_chunks_as_json( FileID, NumChunks, SecretKey),
-            cowboy_req:reply(200, #{<<"content-type">> => <<"application/json">>}, Json, Req);
+        {ok, FileRecord} ->
+            process_file_record(FileRecord, FileID, Req, SecretKey);
         {error, Reason} ->
             cowboy_req:reply(500, #{}, Reason, Req)
-    end;
-handle(_, Req, _, _) ->
-    cowboy_req:reply(405, #{}, <<"method not allowed">>, Req).
+    end.
 
-get_chunks_as_json(FileName, Chuncks, SecretKey) ->
-    %% Recupera i record dei chunk dalla query
-    Records = master_db:get_chunks(FileName, Chuncks),
+process_file_record({user_file, {_Username, _Filename}, _FileID, NumChunks}, FileID, Req, SecretKey) ->
+    JsonResponse = get_chunks_as_json(FileID, NumChunks, SecretKey),
+    cowboy_req:reply(200, #{<<"content-type">> => <<"application/json">>}, JsonResponse, Req).
+
+get_chunks_as_json(FileID, NumChunks, SecretKey) ->
+    Records = master_db:get_chunks(FileID, NumChunks),
     io:format("[INFO] Records: ~p~n", [Records]),
-    %% Trasforma ogni record in una mappa
-    Files = chunk_to_map(Records, [], SecretKey),
-    jiffy:encode(Files).
+    ChunkList = map_chunks(Records, SecretKey),
+    jiffy:encode(ChunkList).
 
+map_chunks(Records, SecretKey) ->
+    lists:reverse(map_chunks(Records, [], SecretKey)).
 
-chunk_to_map([[{chunk, {_Filename, ChunkPosition}, ChunkName, Nodes}]|Tail], Acc, SecretKey) ->
-    TokenChunkName = jwt:encode_file_name(ChunkName, SecretKey),
-    NodeChoosen = choose_node(Nodes),
-    update_slaves(Nodes, NodeChoosen),
-    IpFormatted = node_to_url(NodeChoosen),
-    io:format("[INFO] IP: ~p~n", [IpFormatted]),
+map_chunks([[{chunk, {_Filename, ChunkPosition}, ChunkName, Nodes}] | Tail], Acc, SecretKey) ->
+    TokenChunkName = master_jwt:encode_file_name(ChunkName, SecretKey),
+    ChosenNode = choose_node(Nodes),
+    update_slaves(Nodes, ChosenNode),
+    IpFormatted = node_to_url(ChosenNode),
     IpFormattedBin = list_to_binary(IpFormatted),
-    Map = #{<<"ip">> => IpFormattedBin,
-            <<"chunkName">> => TokenChunkName,  
-            <<"chunkPosition">> => ChunkPosition},
-    chunk_to_map(Tail, [Map | Acc], SecretKey);
-chunk_to_map([], Acc, _) ->
-    lists:reverse(Acc).
+    ChunkMap = #{<<"ip">> => IpFormattedBin,
+                 <<"chunkName">> => TokenChunkName,
+                 <<"chunkPosition">> => ChunkPosition},
+    map_chunks(Tail, [ChunkMap | Acc], SecretKey);
+map_chunks([], Acc, _) ->
+    Acc.
 
-
-node_to_url(NodeStr) when is_atom(NodeStr) ->
-    node_to_url(atom_to_list(NodeStr));
+node_to_url(Node) when is_atom(Node) ->
+    node_to_url(atom_to_list(Node));
 node_to_url(NodeStr) when is_list(NodeStr) ->
     case string:split(NodeStr, "@") of
         [NodeName, Host] ->
-            % Estrai il numero dal nome del nodo (es. "slave3" -> 3)
             case string:substr(NodeName, 6, length(NodeName) - 5) of
                 NumStr when is_list(NumStr) ->
                     Port = 5000 + list_to_integer(NumStr),
                     lists:flatten(io_lib:format("http://~s:~p", [Host, Port]));
                 _ ->
-                    "http://" ++ NodeStr  % fallback
+                    "http://" ++ NodeStr
             end;
         _ ->
-            "http://" ++ NodeStr  % fallback
+            "http://" ++ NodeStr
     end.
-
 
 choose_node(Nodes) when is_list(Nodes) ->
     choose_node(Nodes, []).
 
-choose_node([Head|Tail], Acc) ->
+choose_node([Head | Tail], Acc) ->
     {slave, Head} ! {status, node(), self()},
     receive
         {status, Pending, Possible} ->
             Value = Pending + Possible * 0.5,
-            io:format("[INFO] Node: ~p, Pending: ~p, Possible: ~p, Value: ~p~n", [Head, Pending, Possible, Value]),
+            io:format("[INFO] Node: ~p, Pending: ~p, Possible: ~p, Value: ~p~n", 
+                      [Head, Pending, Possible, Value]),
             choose_node(Tail, [{Head, Value} | Acc])
     end;
 choose_node([], Acc) ->
-    % Sort the list of nodes by value
     Sorted = lists:sort(fun({_, V1}, {_, V2}) -> V1 < V2 end, Acc),
     io:format("[INFO] Sorted nodes: ~p~n", [Sorted]),
-    % Get the node with the least value
     case Sorted of
         [{Node, _}|_] -> Node;
         [] -> undefined
     end.
 
-update_slaves([Head | Tail], Choosen) when Head =:= Choosen ->
+update_slaves([Head | Tail], Chosen) when Head =:= Chosen ->
     {slave, Head} ! {choose},
-    io:format("[INFO] Choosen node: ~p~n", [Head]),
-    update_slaves(Tail, Choosen);
-update_slaves([Head | Tail], Choosen) when Head =/= Choosen ->
-    io:format("[INFO] Not choosen node: ~p~n", [Head]),
+    io:format("[INFO] Chosen node: ~p~n", [Head]),
+    update_slaves(Tail, Chosen);
+update_slaves([Head | Tail], Chosen) when Head =/= Chosen ->
+    io:format("[INFO] Not chosen node: ~p~n", [Head]),
     {slave, Head} ! {not_choose},
-    update_slaves(Tail, Choosen);
+    update_slaves(Tail, Chosen);
 update_slaves([], _) ->
     ok.
