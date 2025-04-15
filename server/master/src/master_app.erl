@@ -13,19 +13,21 @@
 start(_StartType, _StartArgs) ->
     Port = case os:getenv("PORT") of
         false ->
-            8081;
+            3000;
         PortStr ->
             io:format("[INFO] Port: ~p~n", [PortStr]),
-           {PortInt, _} = string:to_integer(PortStr),
+            {PortInt, _} = string:to_integer(PortStr),
             PortInt
-    end,
+    end,    
+
     SecretKey = case os:getenv("SECRET_KEY") of
         false ->
             "";
         SecretKeyStr ->
             SecretKeyStr
     end,
-    NumReplicas = case application:get_env('Distributed-Storage-System', num_replicas) of
+
+    ReplicaHosts = case application:get_env('Distributed-Storage-System', replica_hosts) of
         {ok, N} -> N;
         undefined -> 0
     end,
@@ -34,12 +36,12 @@ start(_StartType, _StartArgs) ->
         {ok, B} -> B;
         undefined -> false
     end,
-    Nodes = start_nodes(IsBootstrap, NumReplicas, SecretKey),
+    Nodes = start_nodes(IsBootstrap, ReplicaHosts, SecretKey, Port),
 
     lists:foreach(fun(Node) ->
         io:format("[INFO] Ping ~p: ~p~n", [Node, net_adm:ping(Node)])
     end, Nodes),
-    init_db(IsBootstrap, Nodes++[node()]),
+    init_db(IsBootstrap, Nodes ++ [node()]),
 
     Dispatch = cowboy_router:compile([
         {'_', [
@@ -49,51 +51,60 @@ start(_StartType, _StartArgs) ->
             {"/files", master_get_files_handler, []},
             {"/fileparts", master_file_parts_handler, [#{secret_key => list_to_binary(SecretKey)}]},
             {"/share", master_share_handler, []}
-        ]}  
+        ]}
     ]),
     {ok, _} = cowboy:start_clear(http_listener, [
         {port, Port}
     ], #{
         env => #{dispatch => Dispatch, secret_key => list_to_binary(SecretKey)},
-        middlewares => [master_middleware, cowboy_router, cowboy_handler]}),
+        middlewares => [master_middleware, cowboy_router, cowboy_handler]
+    }),
 
     master_sup:start_link().
+
 stop(_State) ->
     ok.
 
 
-start_nodes(false, _NumReplicas, _PrivateKey) ->
+start_nodes(false, _HostReplicas, _PrivateKey, _Port) ->
     [];
-start_nodes(true, NumReplicas, PrivateKey) ->
-    add_node(NumReplicas,[], PrivateKey).
+start_nodes(true, HostReplicas, PrivateKey, Port) ->
+    add_node(HostReplicas, 1, [], PrivateKey, Port).
 
 
-add_node(NumReplicas, Nodes, _PrivateKey) when NumReplicas > 0 -> 
-    Port = 8080 + NumReplicas,
+add_node([Head | Tail], NumReplicas, Nodes, PrivateKey, Port) ->
     NameStr = "master" ++ integer_to_list(NumReplicas),
     Name = list_to_atom(NameStr),
-    Args = ["-setcookie", "system", "-env", "PORT", integer_to_list(Port), "-env", "SECRET_KEY", _PrivateKey],
-    {ok, _, Node} = ?CT_PEER(#{host => "127.0.0.1", name => Name, args => Args}),
-    % elp:ignore W0014 (cross_node_eval)
+    NameFull = lists:concat([atom_to_list(Name), "@", Head]),
+
+    Ssh = os:find_executable("ssh"),
+
+    Args = #{
+        host => Head,
+        name => Name,
+        exec => {Ssh, ["-i", "/root/.ssh/test_ak", Head, "erl"]},
+        args => ["-name", NameFull, "-setcookie", "system", 
+                "-env", "PORT", integer_to_list(Port),
+                "-env", "SECRET_KEY", PrivateKey]
+    },
+    {ok, _, Node} = ?CT_PEER(Args),
     rpc:call(Node, application, set_env, [ws, bootstrap, false]),
     lists:foreach(
         fun(Path) ->
-            % elp:ignore W0014 (cross_node_eval)
             rpc:call(Node, code, add_pathz, [Path])
         end,
         code:get_path()
     ),
-    % elp:ignore W0014 (cross_node_eval)
+
     rpc:call(Node, application, ensure_all_started, [master]),
-    add_node(NumReplicas - 1, Nodes++[Node],_PrivateKey);
-add_node(0, Nodes, _) ->
+
+    add_node(Tail, NumReplicas + 1, Nodes++[Node], PrivateKey, Port);
+add_node([], _, Nodes, _, _) ->
     Nodes.
-      
-%% internal functions
+
 init_db(true, Nodes) ->
     mnesia:create_schema(Nodes),
-    % elp:ignore W0014 (cross_node_eval)
-    {_Results, BadNodes} = rpc:multicall(Nodes, application, ensure_all_started, [mnesia]),
+    {Results, BadNodes} = rpc:multicall(Nodes, application, ensure_all_started, [mnesia]),
     case BadNodes of
         [] ->
             mnesia:start();
@@ -101,8 +112,8 @@ init_db(true, Nodes) ->
             io:format("[INFO] Mnesia start failed on nodes: ~p~n", [BadNodes]),
             exit({mnesia_start_failed, BadNodes})
     end,
-    io:format("[INFO] Mnesia started on nodes: ~p. With result: ~p~n", [Nodes, _Results]),
+    io:format("[INFO] Mnesia started on nodes: ~p. With result: ~p~n", [Nodes, Results]),
     mnesia:start(),
     master_db:create_tables(Nodes);
-init_db(false,_) ->
+init_db(false, _) ->
     ok.

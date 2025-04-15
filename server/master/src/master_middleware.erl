@@ -31,14 +31,16 @@ handle(_Path, Req, SecretKey) ->
             {stop, NewReq};
         AuthHeader ->
             Token = extract_token(AuthHeader),
-            case jwt:decode(Token, SecretKey) of
+            case master_jwt:decode(Token, SecretKey) of
                 {error, _} ->
-                    NewReq = cowboy_req:reply(401, #{<<"content-type">> => <<"text/plain">>}, "error during the decode of the json body", Req),
+                    NewReq = cowboy_req:reply(401, #{<<"content-type">> => <<"text/plain">>}, 
+                        "error during the decode of the json body", Req),
                     {stop, NewReq};
                 {ok, Username} ->
                     case master_db:get_user(Username) of
                         {error, _} ->
-                            NewReq = cowboy_req:reply(401, #{<<"content-type">> => <<"text/plain">>}, "error on getting user", Req),
+                            NewReq = cowboy_req:reply(401, #{<<"content-type">> => <<"text/plain">>}, 
+                                "error on getting user", Req),
                             {stop, NewReq};
                         {ok, _User} ->
                             {ok, Username}
@@ -75,7 +77,8 @@ update_routes(Routes, Root, Username) ->
             if
                 NormalizedPath == NormalizedRoot ->
                     % if the path matches the root, add the username to the options
-                    {Path, PrefixPath, Handler, Options ++ [#{username => Username}]};
+                    {Path, PrefixPath, Handler, 
+                        Options ++ [#{username => Username}]};
                 true ->
                     {Path, PrefixPath, Handler, Options}
             end
