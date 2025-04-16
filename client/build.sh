@@ -17,4 +17,5 @@ jpackage \
   --main-class com.unipi.application.Application \
   --type dmg \
   --dest dist/ \
+  --icon ./LogoDSS.icns \
   --runtime-image ./custom-runtime/
