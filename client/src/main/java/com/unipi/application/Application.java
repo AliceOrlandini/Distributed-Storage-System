@@ -4,48 +4,45 @@ import java.util.concurrent.CountDownLatch;
 import javafx.scene.Scene;
 import javafx.scene.web.WebView;
 import javafx.stage.Stage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Application extends javafx.application.Application {
 
-    // Latch per sincronizzare l'avvio del server con l'applicazione desktop
-    private static CountDownLatch latch = new CountDownLatch(1);
+    // latch to synchronize the Springboot application and the JavaFX
+    private static final CountDownLatch latch = new CountDownLatch(1);
+    private static final Logger LOGGER = LoggerFactory.getLogger(Application.class);
 
     public static void releaseLatch() {
         latch.countDown();
     }
     @Override
     public void init() throws Exception {
-        // Avvia Spring Boot in un thread separato
+        // start the Springboot application in a separated thread
         new Thread(() -> {
-            // Qui avvii l'applicazione Spring Boot
             VaadinApplication.launch(new String[]{});
-            // Quando Spring Boot è pronto, decrementa il latch
+            // when the Springboot application is ready decrement the latch
             latch.countDown();
         }).start();
     }
 
     @Override
     public void start(Stage primaryStage) throws Exception {
-        // Attendi fino a quando il latch non è rilasciato (cioè il server è pronto)
+        // wait until the spring application is ready
         latch.await();
 
         WebView webView = new WebView();
-
-        // Imposta lo user agent se necessario
         webView.getEngine().setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36");
 
-        // Listener per il monitoraggio del caricamento della pagina
         webView.getEngine().getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
-            System.out.println("Stato caricamento: " + newState);
+            System.out.println("Loading Status: " + newState);
         });
         webView.getEngine().getLoadWorker().exceptionProperty().addListener((obs, oldExc, newExc) -> {
             if (newExc != null) {
-                System.err.println("Errore nel caricamento della pagina: " + newExc.getMessage());
-                newExc.printStackTrace();
+                LOGGER.error("Error on loading the page: {}", newExc.getMessage());
             }
         });
 
-        // Carica l'URL dell'applicazione Vaadin
         webView.getEngine().load("http://localhost:3000/");
 
         Scene scene = new Scene(webView, 1024, 768);
