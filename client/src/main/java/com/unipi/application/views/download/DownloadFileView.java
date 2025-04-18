@@ -80,7 +80,12 @@ public class DownloadFileView extends VerticalLayout {
             }
 
             try {
-                saveFile.SaveFile(chunks, savePath);
+                boolean savedSuccessfully = saveFile.saveFile(chunks, savePath);
+                if (!savedSuccessfully) {
+                    Notification.show("File not saved", 5000, Notification.Position.TOP_CENTER)
+                            .addThemeVariants(NotificationVariant.LUMO_ERROR);
+                    return;
+                }
                 Notification.show("File downloaded and saved in " + savePath,
                                 5000, Notification.Position.TOP_CENTER)
                         .addThemeVariants(NotificationVariant.LUMO_SUCCESS);

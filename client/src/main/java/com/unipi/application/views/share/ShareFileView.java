@@ -27,8 +27,10 @@ import java.util.List;
 @Route("share")
 @Menu(order = 4, icon = LineAwesomeIconUrl.SHARE_SOLID)
 public class ShareFileView extends VerticalLayout {
+
     private static final Logger LOGGER = LoggerFactory.getLogger(ShareFileView.class);
-    private static ShareService shareService = new ShareService();
+    private final ShareService shareService = new ShareService();
+
     public ShareFileView() {
         String jwtToken = VaadinSession.getCurrent().getAttribute("jwt").toString();
         ComboBox<FileDetails> fileComboBox = new ComboBox<>("Select a file");
@@ -60,7 +62,14 @@ public class ShareFileView extends VerticalLayout {
                 return;
             }
             try {
-                shareService.shareFile(userTextField.getValue(), selectedFile.getFileID(), jwtToken);
+                boolean shareSuccessful = shareService.shareFile(userTextField.getValue(), selectedFile.getFileID(), jwtToken);
+                if (!shareSuccessful) {
+                    Notification.show("Error sharing file", 3000, Notification.Position.TOP_CENTER)
+                            .addThemeVariants(NotificationVariant.LUMO_ERROR);
+                    return;
+                }
+                Notification.show("File shared successfully", 3000, Notification.Position.TOP_CENTER)
+                        .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }

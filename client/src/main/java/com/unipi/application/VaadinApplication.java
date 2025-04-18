@@ -18,10 +18,9 @@ public class VaadinApplication implements AppShellConfigurator {
 
     public static void launch(String[] args) {
         SpringApplication app = new SpringApplication(VaadinApplication.class);
-        // Aggiungi un listener per l'evento di applicazione pronta
         app.addListeners((ApplicationListener<ApplicationReadyEvent>) event -> {
             Application.releaseLatch();
         });
-        app.run(args);    }
-
+        app.run(args);
+    }
 }

@@ -5,8 +5,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
-
 import reactor.core.publisher.Mono;
+import com.unipi.application.config.Connection;
 
 @Service
 public class RegistrationService {
@@ -17,21 +17,20 @@ public class RegistrationService {
             LOGGER.info("Registration trial for: {}", username);
             RegistrationRequest request = new RegistrationRequest(username, password);
 
-            String backendUrl = "http://localhost:8080";
-            String registrationResponse = WebClient.create(backendUrl)
-                    .post()
-                    .uri("/registration")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(request)
-                    .exchangeToMono(response -> {
-                        if (response.statusCode().isError()) {
-                            LOGGER.error("Error on client: {}", response.statusCode());
-                            return Mono.just("error");
-                        } else {
-                            return response.bodyToMono(String.class);
-                        }
-                    })
-                    .block();
+            String registrationResponse = WebClient.create(Connection.BACKEND_URL)
+                .post()
+                .uri("/registration")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .exchangeToMono(response -> {
+                    if (response.statusCode().isError()) {
+                        LOGGER.error("Error on client: {}", response.statusCode());
+                        return Mono.just("error");
+                    } else {
+                        return response.bodyToMono(String.class);
+                    }
+                })
+                .block();
 
             if (registrationResponse != null && registrationResponse.equals("error")) {
                 LOGGER.error("Registration failed for user: {}", username);

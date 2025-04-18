@@ -4,7 +4,6 @@ import com.unipi.application.model.ChunckModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -13,19 +12,18 @@ import java.nio.file.Paths;
 import java.util.Comparator;
 import java.util.List;
 import java.util.ArrayList;
+import com.unipi.application.config.Connection;
 
 @Service
 public class SaveFileService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SaveFileService.class);
 
-
     private byte[] reassembleFile(List<ChunckModel> chunks) throws IOException {
         if (chunks == null || chunks.isEmpty()) {
             LOGGER.warn("No chunks found");
             return new byte[0];
         }
-
 
         List<ChunckModel> mutableChunks = new ArrayList<>(chunks);
         mutableChunks.sort(Comparator.comparingInt(ChunckModel::getPosition));
@@ -39,14 +37,15 @@ public class SaveFileService {
         return outputStream.toByteArray();
     }
 
-    public void SaveFile(List<ChunckModel> chunks, String filePath) throws IOException {
+    public boolean saveFile(List<ChunckModel> chunks, String filePath) throws IOException {
         byte[] fileData = reassembleFile(chunks);
         if (fileData.length == 0) {
             LOGGER.warn("The assembled file is empty, not saved");
-            return;
+            return false;
         }
         Path path = Paths.get(filePath);
         Files.write(path, fileData);
         LOGGER.info("File saved successfully in {}", filePath);
+        return true;
     }
 }

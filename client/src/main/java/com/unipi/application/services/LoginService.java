@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import com.unipi.application.config.Connection;
 
 @Service
 public class LoginService {
@@ -15,13 +16,12 @@ public class LoginService {
             LOGGER.info("Authentication trial for: {}", username);
             LoginRequest request = new LoginRequest(username, password);
 
-            String backendUrl = "http://localhost:8080";
-            LoginResponse loginResponse = WebClient.create(backendUrl)
+            LoginResponse loginResponse = WebClient.create(Connection.BACKEND_URL)
                 .post()
                 .uri("/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(request)
-                .retrieve() // usa retrieve() per semplificare la gestione degli errori
+                .retrieve()
                 .bodyToMono(LoginResponse.class)
                 .block();
             if (loginResponse == null || loginResponse.getToken() == null) {
