@@ -50,7 +50,8 @@ start(_StartType, _StartArgs) ->
             {"/upload", master_upload_handler, []},
             {"/files", master_get_files_handler, []},
             {"/fileparts", master_file_parts_handler, [#{secret_key => list_to_binary(SecretKey)}]},
-            {"/share", master_share_handler, []}
+            {"/share", master_share_handler, []},
+            {"/delete", master_delete_handler, []}
         ]}
     ]),
     {ok, _} = cowboy:start_clear(http_listener, [

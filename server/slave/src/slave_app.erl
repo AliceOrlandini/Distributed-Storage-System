@@ -103,6 +103,10 @@ loop() ->
             io:format("[INFO] Received replicated file: ~p~n", [FileName]),
             save_file:save_file(FileName, FileContent, node()),
             loop();
+        {delete_chunk, ChunkName} ->
+            io:format("[INFO] Received delete_chunk for: ~p~n", [ChunkName]),
+            save_file:delete_chunk(ChunkName, node()),
+            loop();
         {status, _ServerIP, ServerPid} -> 
             io:format("[INFO] Received status request.~n"),
             case slave_db:get_status() of

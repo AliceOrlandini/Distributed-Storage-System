@@ -1,7 +1,8 @@
 -module(master_db).
 -export([test/0, create_tables/1, insert_file/3, insert_file/4, 
     get_file/2, get_files/1, insert_chunk/4, get_chunks/2, 
-    insert_user/2, get_user/1, count_chunks/1]).
+    insert_user/2, get_user/1, count_chunks/1, has_other_owners/2, 
+    remove_user_file/2, remove_chunks/2]).
 
 -record(user_file, {user_file, file_id, num_chuncks}).
 -record(chunk, {id, chunk_name, nodes}).
@@ -171,3 +172,27 @@ test() ->
     mnesia:activity(transaction, fun() ->
     mnesia:match_object(#user_file{file_id='_', user_file='_', num_chuncks='_'})
     end).
+
+%% Ritorna true se esistono altri owner per quel file_id diversi da Username
+has_other_owners(FileID, Username) ->
+    case mnesia:transaction(fun() ->
+        mnesia:match_object(#user_file{user_file = {'_', '_'}, file_id = FileID, num_chuncks = '_'})
+    end) of
+        {atomic, Records} ->
+            lists:any(fun(#user_file{user_file = {U, _}}) -> U =/= Username end, Records);
+        _ -> false
+    end.
+
+%% Elimina la relazione user_file per uno specifico utente/file
+remove_user_file(Username, FileID) ->
+    mnesia:transaction(fun() ->
+        mnesia:delete_object(#user_file{user_file = {Username, '_'}, file_id = FileID, num_chuncks = '_'})
+    end).
+
+%% Elimina tutti i chunk di un file dalla tabella chunk
+remove_chunks(FileID, NumChunks) ->
+    lists:foreach(fun(N) ->
+        mnesia:transaction(fun() ->
+            mnesia:delete({chunk, {FileID, N}})
+        end)
+    end, lists:seq(0, NumChunks-1)).

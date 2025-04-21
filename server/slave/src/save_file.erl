@@ -1,6 +1,6 @@
 -module(save_file).
 
--export([save_file/3]).
+-export([save_file/3, delete_chunk/2]).
 
 save_file(FileName, FileContent, NodeName) ->
     Dir = "files_" ++ atom_to_list(NodeName),
@@ -10,6 +10,17 @@ save_file(FileName, FileContent, NodeName) ->
         ok -> ok;
         {error, Reason} -> 
             io:format("[ERROR] Error writing file: ~p~n", [Reason])
+    end.
+
+delete_chunk(FileName, NodeName) ->
+    Dir = "files_" ++ atom_to_list(NodeName),
+    FilePath = filename:join(Dir, FileName),
+    case file:delete(FilePath) of
+        ok -> ok;
+        {error, enoent} -> ok; % File già non esistente
+        {error, Reason} ->
+            io:format("[ERROR] Error deleting file: ~p~n", [Reason]),
+            {error, Reason}
     end.
 
 ensure_directory_exists(Dir) ->

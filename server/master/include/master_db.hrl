@@ -1,0 +1,3 @@
+-record(user_file, {user_file, file_id, num_chuncks}).
+-record(chunk, {id, chunk_name, nodes}).
+-record(user, {username, password}).
