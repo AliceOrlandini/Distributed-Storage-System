@@ -9,16 +9,21 @@
 
 -export([init/2]).
 
-init(Req, State) ->
-    %% Estrai parametri dalla richiesta (file_id e username)
-    {ok, Body, Req1} = cowboy_req:read_body(Req),
-    case jsx:decode(Body, [return_maps]) of
-        #{"file_id" := FileID, "username" := Username} ->
-            handle_delete(FileID, Username, Req1, State);
-        _ ->
-            Resp = jsx:encode(#{error => "Invalid parameters"}),
-            Req2 = cowboy_req:reply(400, #{"content-type" => "application/json"}, Resp, Req1),
-            {ok, Req2, State}
+init(Req, Opts) ->
+    %% Prendi fileID dai query params
+    Qs0 = cowboy_req:parse_qs(Req),
+    Qs = case is_list(Qs0) of
+             true -> Qs0;
+             false -> [Qs0]
+         end,
+    [#{username := Username}] = Opts,
+
+    case proplists:get_value(<<"fileID">>, Qs, undefined) of
+    undefined ->
+        cowboy_req:reply(400, #{}, <<"Missing fileID parameter">>, Req);
+    FileID ->
+        io:format("[INFO] FileID: ~p~n", [FileID]),
+        handle_delete(FileID, Username, Req, Opts)
     end.
 
 handle_delete(FileID, Username, Req, State) ->
@@ -28,7 +33,7 @@ handle_delete(FileID, Username, Req, State) ->
             %% Controlla se altri utenti possiedono il file
             case master_db:has_other_owners(FileID, Username) of
                 true ->
-                    master_db:remove_user_file(Username, FileID),
+                    master_db:delete_file(Username, FileID),
                     Resp = jsx:encode(#{result => "User-file relation deleted"}),
                     Req2 = cowboy_req:reply(200, #{"content-type" => "application/json"}, Resp, Req),
                     {ok, Req2, State};
@@ -45,10 +50,10 @@ handle_delete(FileID, Username, Req, State) ->
     end.
 
 delete_chunks_and_file(FileID, Username) ->
-    {ok, [#user_file{num_chuncks = NumChunks}]} = master_db:get_file(Username, FileID),
+    {ok, #user_file{num_chuncks = NumChunks}} = master_db:get_file(Username, FileID),
     Chunks = master_db:get_chunks(FileID, NumChunks),
     send_delete_to_slaves(Chunks),
-    master_db:remove_user_file(Username, FileID),
+    master_db:delete_file(Username, FileID),
     master_db:remove_chunks(FileID, NumChunks).
 
 send_delete_to_slaves(Chunks) ->

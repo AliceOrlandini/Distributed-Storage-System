@@ -2,7 +2,7 @@
 -export([test/0, create_tables/1, insert_file/3, insert_file/4, 
     get_file/2, get_files/1, insert_chunk/4, get_chunks/2, 
     insert_user/2, get_user/1, count_chunks/1, has_other_owners/2, 
-    remove_user_file/2, remove_chunks/2]).
+    remove_chunks/2, delete_file/2]).
 
 -record(user_file, {user_file, file_id, num_chuncks}).
 -record(chunk, {id, chunk_name, nodes}).
@@ -46,6 +46,29 @@ get_files(Username) ->
         {aborted, Reason} -> {error, Reason}
     end.
 
+delete_file(Username, FileID) ->
+    case mnesia:transaction(fun() ->
+                mnesia:match_object(#user_file{
+                user_file   = {Username, '_'},
+                file_id     = FileID,
+                num_chuncks = '_'
+                })
+            end) of
+        {atomic, []} ->
+            {error, not_found};
+        {atomic, Records} ->
+            _ = mnesia:transaction(fun() ->
+                    lists:foreach(fun(Rec) ->
+                        mnesia:delete_object(Rec)
+                    end, Records)
+                end),
+            io:format("[INFO] File successfully deleted~n"),
+            {ok, deleted};
+        {aborted, Reason} ->
+            io:format("[INFO] File not deleted ~p~n", [Reason]),
+            {error, Reason}
+    end.
+    
 
 insert_user(Username, Password) ->
     HashedPassword = crypto:hash(sha256, Password),
@@ -182,12 +205,6 @@ has_other_owners(FileID, Username) ->
             lists:any(fun(#user_file{user_file = {U, _}}) -> U =/= Username end, Records);
         _ -> false
     end.
-
-%% Elimina la relazione user_file per uno specifico utente/file
-remove_user_file(Username, FileID) ->
-    mnesia:transaction(fun() ->
-        mnesia:delete_object(#user_file{user_file = {Username, '_'}, file_id = FileID, num_chuncks = '_'})
-    end).
 
 %% Elimina tutti i chunk di un file dalla tabella chunk
 remove_chunks(FileID, NumChunks) ->

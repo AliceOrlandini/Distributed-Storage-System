@@ -1,5 +1,11 @@
 package com.unipi.application.views.delete;
 
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.vaadin.lineawesome.LineAwesomeIconUrl;
+
 import com.unipi.application.model.FileDetails;
 import com.unipi.application.services.DeleteFileService;
 import com.unipi.application.services.GetFilesService;
@@ -14,11 +20,6 @@ import com.vaadin.flow.router.Menu;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.VaadinSession;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.vaadin.lineawesome.LineAwesomeIconUrl;
-
-import java.util.List;
 
 @PageTitle("Delete File")
 @Route("delete")
@@ -48,7 +49,7 @@ public class DeleteFileView extends VerticalLayout {
             FileDetails selectedFile = fileComboBox.getValue();
             LOGGER.info("Deleting file {}", selectedFile);
             if (selectedFile != null) {
-                boolean deleteSuccessful = deleteFileService.deleteFile(selectedFile.getFileName(), jwtToken);
+                boolean deleteSuccessful = deleteFileService.deleteFile(selectedFile.getFileID(), jwtToken);
                 if (!deleteSuccessful) {
                     Notification.show("Error deleting file", 3000, Notification.Position.TOP_CENTER)
                             .addThemeVariants(NotificationVariant.LUMO_ERROR);
