@@ -13,7 +13,7 @@
 start(_StartType, _StartArgs) ->
     Port = case os:getenv("PORT") of
         false ->
-            5001;
+            5000;
         PortStr ->
             io:format("[INFO] Port: ~p~n", [PortStr]), 
             {PortInt, _} = string:to_integer(PortStr),
@@ -43,8 +43,7 @@ stop(_State) ->
 
 init_db() ->
     mnesia:create_schema([node()]),
-    slave_db:create_tables(node()),
-    mnesia:start().
+    slave_db:create_tables(node()).
 
 loop() ->
     receive

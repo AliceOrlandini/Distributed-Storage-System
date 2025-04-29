@@ -20,7 +20,7 @@ public class Application extends javafx.application.Application {
     public void init() throws Exception {
         // start the Springboot application in a separated thread
         new Thread(() -> {
-            VaadinApplication.launch(new String[]{});
+            VaadinApplication.main(new String[]{});
             // when the Springboot application is ready decrement the latch
             latch.countDown();
         }).start();

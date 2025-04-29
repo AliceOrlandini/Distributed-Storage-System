@@ -17,7 +17,7 @@ import com.vaadin.flow.theme.Theme;
 @Theme(value = "distributed-storage-system")
 public class VaadinApplication implements AppShellConfigurator {
 
-    public static void launch(String[] args) {
+    public static void main(String[] args) {
         SpringApplication app = new SpringApplication(VaadinApplication.class);
         app.addListeners((ApplicationListener<ApplicationReadyEvent>) event -> {
             Application.releaseLatch();

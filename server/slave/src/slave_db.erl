@@ -4,12 +4,28 @@
 -record(status, {key, value}).
 
 create_tables(Node) ->
-    mnesia:create_table(status, [
-        {attributes, record_info(fields, status)},
+    _ = case mnesia:create_schema([Node]) of
+            ok                        -> io:format("[INFO] Schema creato~n", []);
+            {error, {_, {already_exists,_}}}   -> io:format("[INFO] Schema già esistente~n", [])
+        end,
+
+    ok = mnesia:start(),
+
+    Result = mnesia:create_table(status, [
+        {attributes, record_info(fields, status)},  %% => [key,value]
         {ram_copies, [Node]},
-        {type, set},
-        {record_name, status}
+        {type, set}
     ]),
+    io:format("[DEBUG] mnesia:create_table(status): ~p~n", [Result]),
+
+    case mnesia:wait_for_tables([status], 500) of
+        ok ->
+            io:format("[INFO] Tabella 'status' pronta~n", []);
+        {timeout, Missing} ->
+            io:format("[ERROR] wait_for_tables timeout: mancanti ~p~n", [Missing]),
+            exit({wait_timeout, Missing})
+    end,
+
     initialize_status().
 
 initialize_status() ->
