@@ -7,7 +7,7 @@
 
 -behaviour(supervisor).
 
--export([start_link/0]).
+-export([start_link/0, start_http_server/0]).
 
 -export([init/1]).
 
@@ -31,5 +31,15 @@ init([]) ->
                  period => 1},
     ChildSpecs = [],
     {ok, {SupFlags, ChildSpecs}}.
+
+start_http_server() ->
+    supervisor:start_child(?SERVER, #{
+        id => master_http_server,
+        start => {master_http_server, start_link, []},
+        restart => permanent,
+        shutdown => 5000,
+        type => worker,
+        modules => [master_http_server]
+    }).
 
 %% internal functions

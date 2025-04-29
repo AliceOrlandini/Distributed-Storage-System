@@ -1,20 +1,32 @@
 -module(master_db).
--export([test/0, create_tables/1, insert_file/3, insert_file/4, 
+-export([insert_file/3, insert_file/4, 
     get_file/2, get_files/1, insert_chunk/4, get_chunks/2, 
     insert_user/2, get_user/1, count_chunks/1, has_other_owners/2, 
-    remove_chunks/2, delete_file/2]).
+    remove_chunks/2, delete_file/2, init_db_bootstrap/1,
+    init_db_replica/0]).
 
 -record(user_file, {user_file, file_id, num_chuncks}).
 -record(chunk, {id, chunk_name, nodes}).
 -record(user, {username, password}).
 
-create_tables(Nodes) when is_list(Nodes) ->
-    mnesia:create_table(user_file, [
-        {attributes, record_info(fields, user_file)},
-        {disc_copies, Nodes},
-        {type, bag},
-        {record_name, user_file}
-    ]),
+init_db_bootstrap(Nodes) ->
+    create_tables(Nodes).
+
+init_db_replica() ->
+    mnesia:wait_for_tables([user, chunk], 50000),
+    mnesia:start().
+
+create_tables(Nodes) ->
+    io:format("[DEBUG] Nodes ~p~n", [application:get_env('Distributed-Storage-System', replica_nodes)]),
+    lists:foreach(fun(N) -> 
+        io:format("[DEBUG] connected: ~p~n",[net_kernel:connect_node(N)])
+    end, Nodes),
+
+    io:format("create schema ~p~n", [mnesia:create_schema([node() | Nodes])]),
+    send_db_created(Nodes),
+    
+    {ok, Res} = application:ensure_all_started(mnesia),
+    io:format("[DEBUG] Mnesia started: ~p~n", [Res]),
     
     mnesia:create_table(chunk, [
         {attributes, record_info(fields, chunk)},
@@ -29,6 +41,12 @@ create_tables(Nodes) when is_list(Nodes) ->
         {type, set},
         {record_name, user}
     ]).
+send_db_created([Head | Tail]) ->
+    {master_app, Head} ! {db_created},
+    send_db_created(Tail); 
+send_db_created([]) ->
+    ok.
+
 
 get_files(Username) ->
     io:format("Format: ~p~n", [Username]),
@@ -213,3 +231,4 @@ remove_chunks(FileID, NumChunks) ->
             mnesia:delete({chunk, {FileID, N}})
         end)
     end, lists:seq(0, NumChunks-1)).
+
