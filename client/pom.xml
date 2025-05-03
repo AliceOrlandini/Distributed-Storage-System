@@ -145,7 +145,7 @@
                             <file>${project.basedir}/eclipse-formatter.xml</file>
                         </eclipse>
                     </java>
-                    <!-- Uncomment to format TypeScript files 
+                    <!-- Uncomment to format TypeScript files
                         <typescript>
                         <includes>
                             <include>src/main/frontend/**/*.ts</include>
