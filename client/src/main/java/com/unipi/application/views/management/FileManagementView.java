@@ -16,12 +16,16 @@ import com.unipi.application.services.GetChunkService;
 import com.unipi.application.services.GetFilePositionService;
 import com.unipi.application.services.GetFilesService;
 import com.unipi.application.services.SaveFileService;
+import com.unipi.application.services.ShareService;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.Menu;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
@@ -38,6 +42,7 @@ public class FileManagementView extends VerticalLayout {
     private final GetChunkService getChunkService = new GetChunkService();
     private final GetFilesService getFilesService = new GetFilesService();
     private final DeleteFileService deleteFileService = new DeleteFileService();
+    private final ShareService shareService = new ShareService();
 
     public FileManagementView() {
         String jwtToken = VaadinSession.getCurrent().getAttribute("jwt").toString();
@@ -94,6 +99,8 @@ public class FileManagementView extends VerticalLayout {
             Button deleteButton = new Button("Delete");
             deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
             deleteButton.addClassName("custom-cursor");
+            deleteButton.getStyle().set("color", "#fff");
+            deleteButton.getStyle().set("background-color", "#d32f2f");
             deleteButton.addClickListener(event -> {
                 boolean deleteSuccessful = deleteFileService.deleteFile(fileDetails.getFileID(), jwtToken);
                 if (!deleteSuccessful) {
@@ -103,11 +110,52 @@ public class FileManagementView extends VerticalLayout {
                 }
                 Notification.show("File deleted successfully", 3000, Notification.Position.TOP_CENTER)
                         .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-                // Aggiorna la griglia dopo la cancellazione
+                // Update the grid after deletion
                 fileGrid.setItems(getFilesService.getFiles(jwtToken));
             });
             return deleteButton;
         }).setHeader("Delete");
+        fileGrid.addComponentColumn(fileDetails -> {
+            Button shareButton = new Button("Share");
+            shareButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
+            shareButton.addClassName("custom-cursor");
+            shareButton.getStyle().set("color", "#fff");
+            shareButton.getStyle().set("background-color", "#43a047"); // green
+            shareButton.addClickListener(event -> {
+                Dialog dialog = new Dialog();
+                TextField userField = new TextField("Username");
+                userField.setPrefixComponent(VaadinIcon.USER.create());
+                userField.setClearButtonVisible(true);
+                Button confirm = new Button("Share", e -> {
+                    String username = userField.getValue();
+                    if (username == null || username.isEmpty()) {
+                        Notification.show("Enter a username", 3000, Notification.Position.TOP_CENTER)
+                            .addThemeVariants(NotificationVariant.LUMO_ERROR);
+                        return;
+                    }
+                    boolean shared;
+                    try {
+                        shared = shareService.shareFile(username, fileDetails.getFileID(), jwtToken);
+                    } catch (Exception ex) {
+                        Notification.show("Error sharing: " + ex.getMessage(), 3000, Notification.Position.TOP_CENTER)
+                            .addThemeVariants(NotificationVariant.LUMO_ERROR);
+                        return;
+                    }
+                    if (shared) {
+                        Notification.show("File shared!", 3000, Notification.Position.TOP_CENTER)
+                            .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                        dialog.close();
+                    } else {
+                        Notification.show("Error sharing file", 3000, Notification.Position.TOP_CENTER)
+                            .addThemeVariants(NotificationVariant.LUMO_ERROR);
+                    }
+                });
+                confirm.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+                dialog.add(userField, confirm);
+                dialog.open();
+            });
+            return shareButton;
+        }).setHeader("Share");
         fileGrid.setItems(files);
         fileGrid.setWidthFull();
         fileGrid.setAllRowsVisible(true);
