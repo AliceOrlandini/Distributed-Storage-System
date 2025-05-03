@@ -28,7 +28,6 @@ public class UploadFileView extends Div {
         Upload upload = new Upload(buffer);
         int maxFileSizeInBytes = 100 * 1024 * 1024; // 10MB
         upload.setMaxFileSize(maxFileSizeInBytes);
-        upload.setAcceptedFileTypes("application/pdf", ".pdf");
         upload.addFileRejectedListener(event -> {
             String errorMessage = event.getErrorMessage();
 
