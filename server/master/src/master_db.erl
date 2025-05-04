@@ -2,7 +2,7 @@
 -export([insert_file/3, insert_file/4, 
     get_file/2, get_files/1, insert_chunk/4, get_chunks/2, 
     insert_user/2, get_user/1, count_chunks/1, has_other_owners/2, 
-    remove_chunks/2, delete_file/2, init_db_bootstrap/1]).
+    remove_chunks/2, delete_file/2, init_db_bootstrap/1, check_and_sync_db/0]).
 
 -record(user_file, {user_file, file_id, num_chuncks}).
 -record(chunk, {id, chunk_name, nodes}).
@@ -226,4 +226,29 @@ remove_chunks(FileID, NumChunks) ->
             mnesia:delete({chunk, {FileID, N}})
         end)
     end, lists:seq(0, NumChunks-1)).
+
+check_and_sync_db() ->
+    case schema_exists() of
+        true -> 
+            io:format("[INFO] Schema exists~n"),
+            mnesia:start(),
+            ok;
+        false -> 
+            io:format("[INFO] Schema not exists~n"),
+            {error, timeout}
+    end.
+
+
+schema_exists() ->
+    Nodes = mnesia:system_info(db_nodes),
+    NodesStr = case application:get_env('Distributed-Storage-System', replica_nodes) of
+        {ok, N} when is_list(N) -> N;
+        _ -> [node()]
+        end,
+    ReplicaNodes = [case N of
+                S when is_list(S) -> list_to_atom(S);
+                A when is_atom(A) -> A
+             end || N <- NodesStr],
+
+    lists:all(fun(N) -> lists:member(N, Nodes) end, [node() | ReplicaNodes]).
 

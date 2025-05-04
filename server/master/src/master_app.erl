@@ -52,7 +52,14 @@ start(_StartType, _StartArgs) ->
             master_sup:start_link(),
             master_sup:start_http_server();
         false ->
-            master_sup:start_link()
+            case master_db:check_and_sync_db() of
+                ok ->
+                    master_sup:start_link(),
+                    master_sup:start_http_server();
+                {error, timeout} ->
+                    io:format("[INFO] DB not synced, waiting for bootstrap node~n"),
+                    master_sup:start_link()  
+            end
     end.
 
 
@@ -61,7 +68,6 @@ start_nodes([Head | Tail], Module, Function, Args) ->
     Result = rpc:call(Head, Module, Function, Args),
     case Result of
         {ok, _} -> ok;
-        ok -> ok;
         Error -> io:format("[ERROR] rpc:call failed: ~p~n", [Error]), Error
     end,
     start_nodes(Tail, Module, Function, Args);

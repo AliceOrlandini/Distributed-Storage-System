@@ -33,13 +33,18 @@ init([]) ->
     {ok, {SupFlags, ChildSpecs}}.
 
 start_http_server() ->
-    supervisor:start_child(?SERVER, #{
-        id => master_http_server,
-        start => {master_http_server, start_link, []},
-        restart => permanent,
-        shutdown => 5000,
-        type => worker,
-        modules => [master_http_server]
-    }).
+    case whereis(master_http_server) of
+        undefined ->
+            supervisor:start_child(?SERVER, #{
+                id => master_http_server,
+                start => {master_http_server, start_link, []},
+                restart => permanent,
+                shutdown => 5000,
+                type => worker,
+                modules => [master_http_server]
+            });
+        _Pid ->
+            {ok, already_started}
+    end.
 
 %% internal functions
