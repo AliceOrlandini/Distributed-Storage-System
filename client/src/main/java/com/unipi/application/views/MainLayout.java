@@ -2,6 +2,8 @@ package com.unipi.application.views;
 
 import java.util.List;
 
+import com.unipi.application.views.login.LoginView;
+import com.unipi.application.views.registration.RegistrationView;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.applayout.AppLayout;
 import com.vaadin.flow.component.applayout.DrawerToggle;
@@ -30,6 +32,7 @@ import com.vaadin.flow.theme.lumo.LumoUtility;
 public class MainLayout extends AppLayout {
 
     private H1 viewTitle;
+    private Button logoutButton;
 
     public MainLayout() {
         setPrimarySection(Section.DRAWER);
@@ -44,12 +47,15 @@ public class MainLayout extends AppLayout {
         viewTitle = new H1();
         viewTitle.addClassNames(LumoUtility.FontSize.LARGE, LumoUtility.Margin.NONE);
 
-        Button logoutButton = new Button("Logout", event -> {
+        logoutButton = new Button("Logout", event -> {
             VaadinSession.getCurrent().setAttribute("jwt", null);
-            Notification.show("Logout effettuato", 3000, Notification.Position.TOP_CENTER);
+            Notification.show("Logout done!", 3000, Notification.Position.TOP_CENTER);
             UI.getCurrent().navigate("login");
         });
         logoutButton.getStyle().set("margin-left", "auto");
+        logoutButton.getStyle().set("margin-right", "16px");
+        logoutButton.getStyle().set("margin-top", "4px");
+        logoutButton.getStyle().set("margin-bottom", "4px");
 
         addToNavbar(true, toggle, viewTitle, logoutButton);
     }
@@ -89,6 +95,15 @@ public class MainLayout extends AppLayout {
     protected void afterNavigation() {
         super.afterNavigation();
         viewTitle.setText(getCurrentPageTitle());
+        Class<?> currentView = UI.getCurrent().getInternals().getActiveRouterTargetsChain().isEmpty()
+            ? null
+            : UI.getCurrent().getInternals().getActiveRouterTargetsChain().get(0).getClass();
+        if (logoutButton != null) {
+            boolean showLogout = currentView != null &&
+                !LoginView.class.isAssignableFrom(currentView) &&
+                !RegistrationView.class.isAssignableFrom(currentView);
+            logoutButton.setVisible(showLogout);
+        }
     }
 
     private String getCurrentPageTitle() {
