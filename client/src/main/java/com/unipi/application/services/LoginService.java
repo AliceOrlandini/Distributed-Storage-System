@@ -5,6 +5,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
+
 import com.unipi.application.config.Connection;
 
 @Service
@@ -25,13 +27,20 @@ public class LoginService {
                 .bodyToMono(LoginResponse.class)
                 .block();
             if (loginResponse == null || loginResponse.getToken() == null) {
-                LOGGER.error("Authentication failed for user: {}", username);
+                LOGGER.error("Authentication failed for user: {} (no token returned)", username);
                 return null;
             }
             LOGGER.info("Authentication complete: {}. Token received.", username);
             return loginResponse.getToken();
+        } catch (WebClientResponseException e) {
+            if (e.getStatusCode().value() == 400 || e.getStatusCode().value() == 401) {
+                LOGGER.warn("Authentication failed for user: {} (invalid credentials)", username);
+            } else {
+                LOGGER.error("HTTP error during authentication for user: {}: {}", username, e.getMessage());
+            }
+            return null;
         } catch (Exception e) {
-            LOGGER.error("Authentication failed for user: {}", username, e);
+            LOGGER.error("Unexpected error during authentication for user: {}", username, e);
             return null;
         }
     }
