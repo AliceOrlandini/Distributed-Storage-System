@@ -9,32 +9,44 @@
 -record(user, {username, password}).
 
 init_db_bootstrap(Nodes) ->
-    create_tables(Nodes).
-
-
-create_tables(Nodes) ->
     io:format("[DEBUG] Nodes ~p~n", [application:get_env('Distributed-Storage-System', replica_nodes)]),
     lists:foreach(fun(N) -> 
         io:format("[DEBUG] connected: ~p~n",[net_kernel:connect_node(N)])
     end, Nodes),
 
     io:format("create schema ~p~n", [mnesia:create_schema([node() | Nodes])]),
-    
+
+    lists:foreach(fun(N) ->
+        rpc:call(N, application, start, [mnesia])
+    end, [node() | Nodes]),
+
     {ok, Res} = application:ensure_all_started(mnesia),
     io:format("[DEBUG] Mnesia started: ~p~n", [Res]),
     
-    mnesia:create_table(chunk, [
+    create_tables(Nodes).
+
+
+create_tables(Nodes) ->
+   
+    io:format("create table ~p~n",[mnesia:create_table(chunk, [
         {attributes, record_info(fields, chunk)},
-        {disc_copies, Nodes},
+        {disc_copies, [node() | Nodes]},
         {type, set},
         {record_name, chunk}
-    ]),
+    ])]),
 
     mnesia:create_table(user, [
         {attributes, record_info(fields, user)},
-        {disc_copies, Nodes},
+        {disc_copies, [node() | Nodes]},
         {type, set},
         {record_name, user}
+    ]),
+
+    mnesia:create_table(user_file, [
+        {attributes, record_info(fields, user_file)},
+        {disc_copies, [node() | Nodes]},
+        {type, set},
+        {record_name, user_file}
     ]).
 
 
@@ -198,13 +210,7 @@ now_secs_hashed_hex() ->
     HashBin = crypto:hash(sha256, integer_to_binary(TS)),
     HexStr = lists:flatten([io_lib:format("~2.16.0B", [X]) || X <- binary_to_list(HashBin)]),
     list_to_binary(HexStr).
-    
-test() -> 
-    mnesia:activity(transaction, fun() ->
-    mnesia:match_object(#user_file{file_id='_', user_file='_', num_chuncks='_'})
-    end).
 
-%% Ritorna true se esistono altri owner per quel file_id diversi da Username
 has_other_owners(FileID, Username) ->
     case mnesia:transaction(fun() ->
         mnesia:match_object(#user_file{user_file = {'_', '_'}, file_id = FileID, num_chuncks = '_'})
@@ -214,7 +220,6 @@ has_other_owners(FileID, Username) ->
         _ -> false
     end.
 
-%% Elimina tutti i chunk di un file dalla tabella chunk
 remove_chunks(FileID, NumChunks) ->
     lists:foreach(fun(N) ->
         mnesia:transaction(fun() ->
