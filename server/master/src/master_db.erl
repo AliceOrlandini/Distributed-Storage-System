@@ -17,6 +17,7 @@ init_db_bootstrap(Nodes) ->
     io:format("create schema ~p~n", [mnesia:create_schema([node() | Nodes])]),
 
     lists:foreach(fun(N) ->
+        % elp:ignore W0014 (cross_node_eval)
         rpc:call(N, application, start, [mnesia])
     end, [node() | Nodes]),
 
@@ -240,11 +241,14 @@ check_and_sync_db() ->
 
 
 schema_exists() ->
-    Nodes = mnesia:system_info(db_nodes),
+    Nodes = case mnesia:system_info(db_nodes) of
+        List when is_list(List) -> List;
+        Single -> [Single]
+    end,
     NodesStr = case application:get_env('Distributed-Storage-System', replica_nodes) of
         {ok, N} when is_list(N) -> N;
         _ -> [node()]
-        end,
+    end,
     ReplicaNodes = [case N of
                 S when is_list(S) -> list_to_atom(S);
                 A when is_atom(A) -> A

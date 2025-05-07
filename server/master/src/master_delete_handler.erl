@@ -34,18 +34,18 @@ handle_delete(FileID, Username, Req, State) ->
             case master_db:has_other_owners(FileID, Username) of
                 true ->
                     master_db:delete_file(Username, FileID),
-                    Resp = jsx:encode(#{result => "User-file relation deleted"}),
-                    Req2 = cowboy_req:reply(200, #{"content-type" => "application/json"}, Resp, Req),
+                    {ok, EncodedResp} = jsx:encode(#{result => "User-file relation deleted"}),
+                    Req2 = cowboy_req:reply(200, #{<<"content-type">> => <<"application/json">>}, EncodedResp, Req),
                     {ok, Req2, State};
                 false ->
                     delete_chunks_and_file(FileID, Username),
-                    Resp = jsx:encode(#{result => "File and chunks deleted"}),
-                    Req2 = cowboy_req:reply(200, #{"content-type" => "application/json"}, Resp, Req),
+                    {ok, EncodedResp} = jsx:encode(#{result => "File and chunks deleted"}),
+                    Req2 = cowboy_req:reply(200, #{<<"content-type">> => <<"application/json">>}, EncodedResp, Req),
                     {ok, Req2, State}
             end;
         _ ->
-            Resp = jsx:encode(#{error => "File not found for user"}),
-            Req2 = cowboy_req:reply(404, #{"content-type" => "application/json"}, Resp, Req),
+            {ok, EncodedResp} = jsx:encode(#{error => "File not found for user"}),
+            Req2 = cowboy_req:reply(404, #{<<"content-type">> => <<"application/json">>}, EncodedResp, Req),
             {ok, Req2, State}
     end.
 
@@ -63,6 +63,7 @@ send_delete_to_slaves(Chunks) ->
                 [#chunk{chunk_name = ChunkName, nodes = Nodes}] ->
                     lists:foreach(
                         fun(Node) ->
+                            % elp:ignore W0014 (cross_node_eval)
                             rpc:call(Node, save_file, delete_chunk, [ChunkName, Node])
                         end,
                         Nodes

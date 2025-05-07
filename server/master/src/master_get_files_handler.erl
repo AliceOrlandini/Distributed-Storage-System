@@ -22,7 +22,7 @@ handle_request(_, Req, _) ->
 
 send_files_response(Files, Req) ->
     FileList = build_files_list(Files),
-    JsonResponse = jsx:encode(#{files => FileList}),
+    {ok, JsonResponse} = jsx:encode(#{files => FileList}),
     io:format("Get files Json: ~p~n", [JsonResponse]),
     cowboy_req:reply(200, #{<<"content-type">> => <<"application/json">>}, JsonResponse, Req).
 

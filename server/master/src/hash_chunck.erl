@@ -8,7 +8,7 @@
     
 get_hash(Data) when is_binary(Data) ->
     Digest = crypto:hash(sha, Data),
-    binary:encode_hex(Digest);
+    [binary:encode_hex(Digest)];
 get_hash(Data) when is_list(Data) ->
     get_hash(Data, []).
 
