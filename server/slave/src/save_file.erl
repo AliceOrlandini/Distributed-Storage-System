@@ -17,7 +17,7 @@ delete_chunk(FileName, NodeName) ->
     FilePath = filename:join(Dir, FileName),
     case file:delete(FilePath) of
         ok -> ok;
-        {error, enoent} -> ok; % File già non esistente
+        {error, enoent} -> ok; % File does not exist
         {error, Reason} ->
             io:format("[ERROR] Error deleting file: ~p~n", [Reason]),
             {error, Reason}

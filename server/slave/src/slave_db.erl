@@ -5,8 +5,8 @@
 
 create_tables(Node) ->
     _ = case mnesia:create_schema([Node]) of
-            ok                        -> io:format("[INFO] Schema creato~n", []);
-            {error, {_, {already_exists,_}}}   -> io:format("[INFO] Schema già esistente~n", [])
+            ok                        -> io:format("[INFO] Schema created~n", []);
+            {error, {_, {already_exists,_}}}   -> io:format("[INFO] Schema exists~n", [])
         end,
 
     ok = mnesia:start(),
@@ -20,9 +20,9 @@ create_tables(Node) ->
 
     case mnesia:wait_for_tables([status], 500) of
         ok ->
-            io:format("[INFO] Tabella 'status' pronta~n", []);
+            io:format("[INFO] Table 'status' ready~n", []);
         {timeout, Missing} ->
-            io:format("[ERROR] wait_for_tables timeout: mancanti ~p~n", [Missing]),
+            io:format("[ERROR] wait_for_tables timeout: missing ~p~n", [Missing]),
             exit({wait_timeout, Missing})
     end,
 

@@ -29,21 +29,21 @@ public class GetChunkService {
                     .accept(MediaType.APPLICATION_OCTET_STREAM)
                     .exchangeToMono(response -> {
                         if (response.statusCode().is4xxClientError()) {
-                            // Leggo il body di errore come String
+                            // Read the error body as a String
                             return response.bodyToMono(String.class)
                                     .flatMap(errorBody -> {
                                         LOGGER.error("Error 4xx fetching chunk: {} → {}", response.statusCode(), errorBody);
-                                        // rilancio un’eccezione custom contenente il corpo
+                                        // Throw a custom exception containing the body
                                         return Mono.error(new RuntimeException(
                                                 "Errore HTTP " + response.statusCode().value() + ": " + errorBody
                                         ));
                                     });
                         } else if (response.statusCode().isError()) {
-                            // altri errori (5xx)
+                            // other errors (5xx)
                             LOGGER.error("Error fetching chunk, status code: {}", response.statusCode());
                             return Mono.error(new RuntimeException("Errore HTTP " + response.statusCode().value()));
                         } else {
-                            // tutto ok, ritorno i byte
+                            // everything is fine, return the bytes
                             return response.bodyToMono(byte[].class);
                         }
                     })

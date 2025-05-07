@@ -28,12 +28,12 @@ init_db_bootstrap(Nodes) ->
 
 create_tables(Nodes) ->
    
-    io:format("create table ~p~n",[mnesia:create_table(chunk, [
+    mnesia:create_table(chunk, [
         {attributes, record_info(fields, chunk)},
         {disc_copies, [node() | Nodes]},
         {type, set},
         {record_name, chunk}
-    ])]),
+    ]),
 
     mnesia:create_table(user, [
         {attributes, record_info(fields, user)},
